@@ -11,14 +11,13 @@ from tqdm import tqdm
 
 from selenium.webdriver import Chrome
 from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.support.ui import WebDriverWait as wait
-from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import NoSuchElementException
 from selenium.webdriver.common.by import By
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
-from selenium.webdriver import Keys, ActionChains
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 
 from bs4 import BeautifulSoup
 
@@ -89,7 +88,7 @@ class InfoFixPrice:
         currentcity.clear()
         self.browser.implicitly_wait(3)
         currentcity.send_keys('Брянск')
-        time.sleep(5)
+        time.sleep(3)
         city = self.browser.find_element(By.XPATH, '//*[@id="modal"]/div/div[4]/div/div[1]')
         city.click()
         self.browser.implicitly_wait(10)
@@ -97,8 +96,7 @@ class InfoFixPrice:
         save = self.browser.find_element(By.XPATH, '//*[@id="modal"]/div/div/div/button[2]')
         save.click()
         self.browser.implicitly_wait(10)
-        time.sleep(10)
-        time.sleep(1)
+        time.sleep(5)
         address = self.browser.find_element(By.XPATH,
                                             '//*[@id="app-header"]/header/div/div[1]/div[1]/div[2]/div/div[1]')
         address.click()
@@ -107,7 +105,7 @@ class InfoFixPrice:
         choose_shop = self.browser.find_element(By.XPATH, '//*[@id="modal"]/div/div/div/div[3]/div/div[2]/div')
         choose_shop.click()
         self.browser.implicitly_wait(10)
-        time.sleep(10)
+        time.sleep(5)
         find_shop = self.browser.find_element(By.XPATH, '//*[@id="modal"]/div/div/div[2]/div/div[2]/div[2]/div[1]'
                                                         '/div[2]/div[1]/div[1]/div[1]/input')
         find_shop.click()
@@ -123,7 +121,7 @@ class InfoFixPrice:
         set_shop2 = self.browser.find_element(By.XPATH, '//*[1]/ymaps/div/div/button/span')
         set_shop2.click()
         self.browser.implicitly_wait(10)
-        time.sleep(10)
+        time.sleep(5)
         final_shop = self.browser.find_element(By.XPATH, '//*[@id="app-header"]/header/div/div[1]/div[1]/div[2]'
                                                          '/div/div[2]')
         if final_shop.text == 'г.Брянск, ул.Бежицкая, д.1Б':
@@ -133,38 +131,54 @@ class InfoFixPrice:
 
     def get_data_from_articles(self, articles):
         for art in tqdm(articles):
-            try:
-                # print(f'{art}')
-                self.browser.get(f'{self.__main_url}catalog/{art}')
-                self.browser.implicitly_wait(20)
-                time.sleep(7)
-                add_to_basket = self.browser.find_element(By.XPATH, '//*[@id="__layout"]'
-                                                                    '/div/div/div[3]/div/div/div/div/div[2]'
-                                                                    '/div[2]/div[6]/button[1]')
-                add_to_basket.click()
-                time.sleep(3)
-                count_products = self.browser.find_element(By.XPATH, '//*[@id="__layout"]/div/div/div[3]'
-                                                                     '/div/div/div/div/div[2]/div[2]/div[5]/div[1]'
-                                                                     '/div/div/div[2]/div/input')
-                count_products.click()
-                self.browser.implicitly_wait(10)
-                # time.sleep(1)
-                count_products.clear()
-                self.browser.implicitly_wait(10)
-                # time.sleep(1)
-                count_products.send_keys('1000')
-                self.browser.implicitly_wait(20)
-                # time.sleep(1)
-                stocks = count_products.get_attribute('value')
-                self.stocks.append(stocks)
-                soup = BeautifulSoup(self.browser.page_source, 'lxml')
-                self.get_data_from_soup(soup)
-                self.check_control_sum()
-            except Exception as exp:
-                print(exp)
-                self.bad_req_list.append(art)
-                time.sleep(10)
-                continue
+            print(f'{art}')
+            a: int = 0
+            while a < 3:
+                try:
+                    self.browser.get(f'{self.__main_url}catalog/{art}')
+                    self.browser.implicitly_wait(20)
+                    # time.sleep(7)
+                    add_to_basket = self.browser.find_element(By.XPATH, '//*[@id="__layout"]'
+                                                                        '/div/div/div[3]/div/div/div/div/div[2]'
+                                                                        '/div[2]/div[6]/button[1]')
+                    add_to_basket.click()
+                    # ожидание, пока элемент не прогрузится
+                    try:
+                        count_products = WebDriverWait(self.browser, 10).until(
+                            EC.presence_of_element_located((By.XPATH, '//*[@id="__layout"]/div/div/div[3]'
+                                                                      '/div/div/div/div/div[2]/div[2]/div[5]/div[1]'
+                                                                      '/div/div/div[2]/div/input'))
+                        )
+                    except Exception as exp:
+                        print(exp)
+                    else:
+                        count_products.click()
+                except Exception as exp:
+                    a += 1
+                    print(f'Ошибка:\n{exp}\n\nTRY: {a}')
+                    if a == 3:
+                        self.bad_req_list.append(art)
+                    time.sleep(3)
+                    self.browser.get('https://fix-price.com/cart')
+                    try:
+                        remove = WebDriverWait(self.browser, 10).until(
+                            EC.presence_of_element_located((By.XPATH, '//*[@id="__layout"]/div/div/div[3]'
+                                                                      '/div/div/div/div/div[1]/div[1]/div[2]/div[1]'
+                                                                      '/button/span')))
+                    except Exception as exp:
+                        print(exp)
+                    else:
+                        remove.click()
+
+                else:
+                    count_products.clear()
+                    count_products.send_keys('1000')
+                    stocks = count_products.get_attribute('value')
+                    self.stocks.append(stocks)
+                    soup = BeautifulSoup(self.browser.page_source, 'lxml')
+                    self.get_data_from_soup(soup)
+                    self.check_control_sum()
+                    a = 3
 
     def get_data_from_soup(self, soup):
         name = soup.find('div', class_='product-details').next.attrs['content']
@@ -204,16 +218,16 @@ class InfoFixPrice:
                 self.code.append(value)
                 check_list.append('Код')
             elif title == 'Ширина, мм.' or title == 'Ширина упаковки, мм.':
-                self.packing_width.append(value)
+                self.packing_width.append(int(value))
                 check_list.append('Ширина')
             elif title == 'Высота, мм.' or title == 'Высота упаковки, мм.':
-                self.packing_height.append(value)
+                self.packing_height.append(int(value))
                 check_list.append('Высота')
             elif title == 'Длина, мм.' or title == 'Длина упаковки, мм.':
-                self.package_length.append(value)
+                self.package_length.append(int(value))
                 check_list.append('Длина')
             elif title == 'Вес, гр.' or title == 'Вес упаковки, гр.':
-                self.weight.append(value)
+                self.weight.append(int(value))
                 check_list.append('Вес')
             elif title == 'Страна производства':
                 self.country.append(value)
@@ -235,9 +249,9 @@ class InfoFixPrice:
                     self.weight.append('-')
                 elif dpr == 'Страна':
                     self.country.append('-')
-        properties_extra = properties_block.find('div', class_='extra-properties').find('div',
-                                                                                        class_='panel')
+        properties_extra = properties_block.find('div', class_='extra-properties')
         if properties_extra:
+            properties_extra = properties_extra.find('div', class_='panel')
             self.properties_extra.append(properties_extra.text)
         else:
             self.properties_extra.append('-')
@@ -248,14 +262,13 @@ class InfoFixPrice:
                 len(self.package_length) == len(self.country) == len(self.url_img):
             return
         else:
-            breakpoint()
             print()
 
     def create_df(self):
         self.res_df.insert(0, 'Артикул', [f'p_{x}' for x in self.code])
         self.res_df.insert(1, 'Название', self.name)
         self.res_df.insert(2, 'Цена FixPrice', self.price)
-        self.res_df.insert(3, 'Цена для OZON', [390 if x * 3 < 390 else round(x * 3) for x in self.price])
+        self.res_df.insert(3, 'Цена для OZON', [390 if x * 4 < 390 else round(x * 3) for x in self.price])
         self.res_df.insert(4, 'Остаток на Бежицкой 1Б', self.stocks)
         self.res_df.insert(5, 'Брэнд', self.brand)
         self.res_df.insert(6, 'Описание', self.description)
@@ -266,6 +279,7 @@ class InfoFixPrice:
         self.res_df.insert(11, 'Производитель', self.country)
         self.res_df.insert(12, 'Ссылка на главное фото товара', [x[0] for x in self.url_img])
         self.res_df.insert(13, 'Ссылки на фото товара', [' '.join(map(str, x)) for x in [x[1:] for x in self.url_img]])
+        self.res_df.insert(14, 'Доп.контент', self.properties_extra)
 
     def create_xls(self):
         """Создание файла excel из 1-го DataFrame"""
@@ -281,6 +295,7 @@ class InfoFixPrice:
         writer.sheets["FixPrice"].set_column(6, 6, 30)
         writer.sheets["FixPrice"].set_column(12, 12, 30)
         writer.sheets["FixPrice"].set_column(13, 13, 30)
+        writer.sheets["FixPrice"].set_column(14, 14, 30)
         # writer.sheets[sheet].set_column(17, 17, 30)
         writer.close()
 
@@ -303,7 +318,7 @@ def main():
     print(f'Start: {t1}')
     InfoFixPrice().start()
     t2 = datetime.datetime.now()
-    print(f'Finish: {t2 - t1}')
+    print(f'Finish: {t2}, TIME: {t2 - t1}')
 
 
 if __name__ == '__main__':
