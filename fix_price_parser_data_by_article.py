@@ -132,19 +132,19 @@ class InfoFixPrice:
     def get_data_from_articles(self, articles):
         for art in tqdm(articles):
             print(f'{art}')
-            a: int = 0
+            a: int = 1
             while a < 3:
                 try:
                     self.browser.get(f'{self.__main_url}catalog/{art}')
                     self.browser.implicitly_wait(20)
-                    # time.sleep(7)
+                    time.sleep(0.2)
                     add_to_basket = self.browser.find_element(By.XPATH, '//*[@id="__layout"]'
                                                                         '/div/div/div[3]/div/div/div/div/div[2]'
                                                                         '/div[2]/div[6]/button[1]')
                     add_to_basket.click()
                     # ожидание, пока элемент не прогрузится
                     try:
-                        count_products = WebDriverWait(self.browser, 10).until(
+                        count_products = WebDriverWait(self.browser, 5).until(
                             EC.presence_of_element_located((By.XPATH, '//*[@id="__layout"]/div/div/div[3]'
                                                                       '/div/div/div/div/div[2]/div[2]/div[5]/div[1]'
                                                                       '/div/div/div[2]/div/input'))
@@ -153,6 +153,14 @@ class InfoFixPrice:
                         print(exp)
                     else:
                         count_products.click()
+                        count_products.clear()
+                        count_products.send_keys('1000')
+                        stocks = count_products.get_attribute('value')
+                        self.stocks.append(stocks)
+                        soup = BeautifulSoup(self.browser.page_source, 'lxml')
+                        self.get_data_from_soup(soup)
+                        self.check_control_sum()
+                        a = 3
                 except Exception as exp:
                     a += 1
                     print(f'Ошибка:\n{exp}\n\nTRY: {a}')
@@ -161,7 +169,7 @@ class InfoFixPrice:
                     time.sleep(3)
                     self.browser.get('https://fix-price.com/cart')
                     try:
-                        remove = WebDriverWait(self.browser, 10).until(
+                        remove = WebDriverWait(self.browser, 5).until(
                             EC.presence_of_element_located((By.XPATH, '//*[@id="__layout"]/div/div/div[3]'
                                                                       '/div/div/div/div/div[1]/div[1]/div[2]/div[1]'
                                                                       '/button/span')))
@@ -169,24 +177,28 @@ class InfoFixPrice:
                         print(exp)
                     else:
                         remove.click()
-
-                else:
-                    count_products.clear()
-                    count_products.send_keys('1000')
-                    stocks = count_products.get_attribute('value')
-                    self.stocks.append(stocks)
-                    soup = BeautifulSoup(self.browser.page_source, 'lxml')
-                    self.get_data_from_soup(soup)
-                    self.check_control_sum()
-                    a = 3
+                #
+                # else:
+                #     count_products.clear()
+                #     count_products.send_keys('1000')
+                #     stocks = count_products.get_attribute('value')
+                #     self.stocks.append(stocks)
+                #     soup = BeautifulSoup(self.browser.page_source, 'lxml')
+                #     self.get_data_from_soup(soup)
+                #     self.check_control_sum()
+                #     a = 3
 
     def get_data_from_soup(self, soup):
         name = soup.find('div', class_='product-details').next.attrs['content']
         self.name.append(name)
         price = soup.find('div', class_='price-quantity-block').next.next.next.attrs['content']
         self.price.append(int(round(float(price))))
-        description = soup.find('div', class_='product-details').find('div', class_='description').text
-        self.description.append(description)
+        description = soup.find('div', class_='product-details').find('div', class_='description')
+        if description:
+            description = description.text
+            self.description.append(description)
+        else:
+            self.description.append('-')
         product_images = soup.find('div', class_='product-images')
         img_list = []
         swiper_wrapper = product_images.find('div', class_='swiper-wrapper')
