@@ -138,7 +138,9 @@ class InfoFixPrice:
                     count_products = None
                     self.browser.get(f'{self.__main_url}catalog/{art}')
                     self.browser.implicitly_wait(20)
-                    time.sleep(2)
+                    # time.sleep(1)
+                    # status_code = self.browser.execute_script('return window.performance.getEntries()[0].response.status')
+                    # print(f'status code: {status_code}')
                     soup = BeautifulSoup(self.browser.page_source, 'lxml')
                     offline_only = soup.find('div', string=re.compile('Товар доступен только в магазинах'))
                     if offline_only:
@@ -146,6 +148,9 @@ class InfoFixPrice:
                             a = 3
                             print(f'{bcolors.WARNING}Товар доступен только в магазинах{bcolors.ENDC} {art}')
                             raise Exception('Товар доступен только в магазинах')
+                    variant = soup.find('div', string=re.compile('Вариант'))
+                    if variant:
+                        print()
                     # st = soup.find('div', text=re.compile('В наличи'))
                     try:
                         stock_on = self.browser.find_element(By.XPATH, '//*[contains(text(), "В наличии")]')
@@ -159,16 +164,24 @@ class InfoFixPrice:
                             print(f'{bcolors.WARNING}Нет в наличии{bcolors.ENDC} {art}')
                             raise Exception('Нет в наличии')
                     if a < 3:
-                        add_to_basket = self.browser.find_element(By.XPATH, '//*[@id="__layout"]'
-                                                                            '/div/div/div[3]/div/div/div/div/div[2]'
-                                                                            '/div[2]/div[6]/button[1]')
+                        # add_to_basket = WebDriverWait(self.browser, 5).until(
+                        #     EC.presence_of_element_located((By.XPATH, '//*[@id="__layout"]'
+                        #                                               '/div/div/div[3]/div/div/div/div/div[2]'
+                        #                                               '/div[2]/div[6]/button[1]')))
+                        add_to_basket = WebDriverWait(self.browser, 5).until(
+                            EC.presence_of_element_located((By.XPATH, '//*[@id="__layout"]/div/div/div[3]/div/div/div'
+                                                                      '/div/div[2]/div[2]/div[5]/button[1]')))
+
                         add_to_basket.click()
                         # ожидание, пока элемент не прогрузится
-
+                        # count_products = WebDriverWait(self.browser, 5).until(
+                        #     EC.presence_of_element_located((By.XPATH, '//*[@id="__layout"]/div/div/div[3]'
+                        #                                               '/div/div/div/div/div[2]/div[2]/div[5]/div[1]'
+                        #                                               '/div/div/div[2]/div/input')))
                         count_products = WebDriverWait(self.browser, 5).until(
-                            EC.presence_of_element_located((By.XPATH, '//*[@id="__layout"]/div/div/div[3]'
-                                                                      '/div/div/div/div/div[2]/div[2]/div[5]/div[1]'
-                                                                      '/div/div/div[2]/div/input')))
+                            EC.presence_of_element_located((By.XPATH, '//*[@id="__layout"]/div/div/div[3]/div/div/div'
+                                                                      '/div/div[2]/div[2]/div[4]/div[1]/div/div/div[2]'
+                                                                      '/div/input')))
                 except Exception as exp:
                     exp_arg = exp.args
                     if exp_arg:
@@ -181,7 +194,7 @@ class InfoFixPrice:
                         if a >= 3:
                             self.bad_req_list.append(art)
                         else:
-                            print(f'Ошибка:\n{exp.args}\n\nTRY: {a}')
+                            print(f'Ошибка:\n{exp}\n\nTRY: {a}')
                         time.sleep(3)
                         self.browser.get('https://fix-price.com/cart')
                         try:
@@ -190,7 +203,7 @@ class InfoFixPrice:
                                                                           '/div/div/div/div/div[1]/div[1]/div[2]/div[1]'
                                                                           '/button/span')))
                         except Exception as exp:
-                            print(exp.args)
+                            print(exp)
                         else:
                             remove.click()
                 else:
@@ -205,7 +218,6 @@ class InfoFixPrice:
                         self.check_control_sum()
                         a = 3
                         print(f' {bcolors.OKGREEN}[+]{bcolors.ENDC} {art}')
-
 
     def get_data_from_soup(self, soup):
         name = soup.find('div', class_='product-details').next.attrs['content']
@@ -223,9 +235,14 @@ class InfoFixPrice:
         swiper_wrapper = product_images.find('div', class_='swiper-wrapper')
         if swiper_wrapper:
             for sw in swiper_wrapper:
-                img = sw.next.contents[6].attrs['src']
-                img = img.replace('800x800/', '')
-                img_list.append(img)
+                len_contents = len(sw.next.contents)
+                if len_contents > 7:
+                    img = sw.next.contents[6].attrs['src']
+                    img = img.replace('800x800/', '')
+                    img_list.append(img)
+                else:
+                    img_list.append('-+'
+                                    ' ')
         else:
             img = \
                 soup.find('div', class_='product-images').find('div', class_='zoom-on-hover').contents[
