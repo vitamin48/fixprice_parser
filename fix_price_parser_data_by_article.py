@@ -187,8 +187,12 @@ class InfoFixPrice:
                     if exp_arg:
                         if exp.args[0] == 'Нет в наличии':
                             self.bad_req_list.append(f'Нет в наличии: {art}')
+                            with open('out_of_stock.txt', 'a') as output:
+                                output.write(art + '\n')
                         elif exp.args[0] == 'Товар доступен только в магазинах':
                             self.bad_req_list.append(f'Товар доступен только в магазинах: {art}')
+                            with open('out_of_stock.txt', 'a') as output:
+                                output.write(art + '\n')
                     else:
                         a += 1
                         if a >= 3:
