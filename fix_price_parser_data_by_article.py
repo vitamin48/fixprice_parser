@@ -367,10 +367,26 @@ class InfoFixPrice:
         self.write_txt_articles_with_bad_req()
 
 
+def send_logs_to_telegram(message):
+    bot_token = '6456958617:AAF8thQveHkyLLtWtD02Rq1UqYuhfT4LoTc'
+    chat_id = '128592002'
+
+    url = f'https://api.telegram.org/bot{bot_token}/sendMessage'
+    data = {"chat_id": chat_id, "text": message}
+    response = requests.post(url, data=data)
+    return response.json()
+
+
 def main():
     t1 = datetime.datetime.now()
     print(f'Start: {t1}')
-    InfoFixPrice().start()
+    send_logs_to_telegram(message=f'Start: {t1}')
+    try:
+        InfoFixPrice().start()
+    except Exception as exp:
+        print(exp)
+        res = send_logs_to_telegram(message=f'Произошла ошибка!\n\n\n{exp}')
+        print(res)
     t2 = datetime.datetime.now()
     print(f'Finish: {t2}, TIME: {t2 - t1}')
 
