@@ -222,6 +222,8 @@ class InfoFixPrice:
                         self.check_control_sum()
                         a = 3
                         print(f' {bcolors.OKGREEN}[+]{bcolors.ENDC} {art}')
+                        with open('available_in_stock.txt', 'a') as output:
+                            output.write(art + '\n')
 
     def get_data_from_soup(self, soup):
         name = soup.find('div', class_='product-details').next.attrs['content']
