@@ -368,11 +368,19 @@ class InfoFixPrice:
 
 
 def send_logs_to_telegram(message):
+    import platform
+    import socket
+    import os
+
+    platform = platform.system()
+    hostname = socket.gethostname()
+    user = os.getlogin()
+
     bot_token = '6456958617:AAF8thQveHkyLLtWtD02Rq1UqYuhfT4LoTc'
     chat_id = '128592002'
 
     url = f'https://api.telegram.org/bot{bot_token}/sendMessage'
-    data = {"chat_id": chat_id, "text": message}
+    data = {"chat_id": chat_id, "text": message+f'\n\n{platform}\n{hostname}\n{user}'}
     response = requests.post(url, data=data)
     return response.json()
 
@@ -389,7 +397,10 @@ def main():
         print(res)
     t2 = datetime.datetime.now()
     print(f'Finish: {t2}, TIME: {t2 - t1}')
+    send_logs_to_telegram(message=f'Finish: {t2}, TIME: {t2 - t1}')
 
 
 if __name__ == '__main__':
     main()
+
+
