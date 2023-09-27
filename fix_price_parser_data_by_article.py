@@ -22,6 +22,10 @@ from selenium.webdriver.support import expected_conditions as EC
 
 from bs4 import BeautifulSoup
 
+from fake_useragent import UserAgent
+
+ua = UserAgent()
+
 
 class bcolors:
     HEADER = '\033[95m'
@@ -43,8 +47,31 @@ class InfoFixPrice:
         self.__options = Options()
         self.__options.add_argument("--start-maximized")
         self.__options.add_argument('--blink-settings=imagesEnabled=false')
+        self.__options.add_argument('--disable-blink-features=AutomationControlled')
         self.__service = Service('chromedriver.exe')
+
+        # self.browser.execute_cdp_cmd('Page.addScriptToEvaluateOnNewDocument', {
+        #     'source': 'Object.defineProperty(navigator,"webdriver",{get: () => undefined})'
+        # })
+
+        # """Необходимо добавить, чтобы не было детектирования эмуляции"""
+        # self.browser.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {
+        #     'source': '''
+        # delete window.cdc_adoQpoasnfa76pfcZLmcfl_Array;
+        # delete window.cdc_adoQpoasnfa76pfcZLmcfl_Promise;
+        # delete window.cdc_adoQpoasnfa76pfcZLmcfl_Symbol;
+        #     '''
+        # })
+
+        self.__options.add_experimental_option("excludeSwitches", ["enable-automation"])
+        self.__options.add_experimental_option('useAutomationExtension', False)
+
         self.browser = webdriver.Chrome(service=self.__service, options=self.__options)
+        self.browser.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
+        self.browser.execute_cdp_cmd('Network.setUserAgentOverride', {"userAgent": 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/83.0.4103.53 Safari/537.36'})
+
+
+
         self.__main_url = 'https://fix-price.com/'
 
         self.bad_brand_list = []
@@ -75,11 +102,14 @@ class InfoFixPrice:
 
     def set_city(self):
         # self.__options.add_argument('--blink-settings=imagesEnabled=true')
+        # self.browser.get(f'{self.__main_url}about/contacts')
         self.browser.get(f'{self.__main_url}about/contacts')
         self.browser.implicitly_wait(20)
-        time.sleep(2)
+        time.sleep(5)
         geo = self.browser.find_element(By.XPATH, '//*[@id="app-header"]/header/div/div[1]/div[1]/div[1]/span')
+        time.sleep(2)
         geo.click()
+        time.sleep(5)
         self.browser.implicitly_wait(5)
         time.sleep(2)
         currentcity = self.browser.find_element(By.XPATH, '//*[@id="modal"]/div/div[4]/form/input')
@@ -380,7 +410,7 @@ def send_logs_to_telegram(message):
     chat_id = '128592002'
 
     url = f'https://api.telegram.org/bot{bot_token}/sendMessage'
-    data = {"chat_id": chat_id, "text": message+f'\n\n{platform}\n{hostname}\n{user}'}
+    data = {"chat_id": chat_id, "text": message + f'\n\n{platform}\n{hostname}\n{user}'}
     response = requests.post(url, data=data)
     return response.json()
 
@@ -402,5 +432,6 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
