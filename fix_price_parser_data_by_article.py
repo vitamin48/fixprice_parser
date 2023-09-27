@@ -53,8 +53,11 @@ class InfoFixPrice:
         # self.browser.execute_cdp_cmd('Page.addScriptToEvaluateOnNewDocument', {
         #     'source': 'Object.defineProperty(navigator,"webdriver",{get: () => undefined})'
         # })
+        self.__options.add_experimental_option("excludeSwitches", ["enable-automation"])
+        self.__options.add_experimental_option('useAutomationExtension', False)
 
-        # """Необходимо добавить, чтобы не было детектирования эмуляции"""
+        self.browser = webdriver.Chrome(service=self.__service, options=self.__options)
+        """Необходимо добавить, чтобы не было детектирования эмуляции"""
         # self.browser.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {
         #     'source': '''
         # delete window.cdc_adoQpoasnfa76pfcZLmcfl_Array;
@@ -62,11 +65,6 @@ class InfoFixPrice:
         # delete window.cdc_adoQpoasnfa76pfcZLmcfl_Symbol;
         #     '''
         # })
-
-        self.__options.add_experimental_option("excludeSwitches", ["enable-automation"])
-        self.__options.add_experimental_option('useAutomationExtension', False)
-
-        self.browser = webdriver.Chrome(service=self.__service, options=self.__options)
         self.browser.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
         self.browser.execute_cdp_cmd('Network.setUserAgentOverride', {"userAgent": 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/83.0.4103.53 Safari/537.36'})
 
@@ -418,7 +416,7 @@ def send_logs_to_telegram(message):
 def main():
     t1 = datetime.datetime.now()
     print(f'Start: {t1}')
-    send_logs_to_telegram(message=f'Start: {t1}')
+    # send_logs_to_telegram(message=f'Start: {t1}')
     try:
         InfoFixPrice().start()
     except Exception as exp:
