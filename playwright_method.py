@@ -3,6 +3,8 @@ from tqdm import tqdm
 from pathlib import Path
 import pandas as pd
 
+from fix_price_parser_data_by_article import bcolors
+
 from playwright.sync_api import Playwright, sync_playwright, expect
 
 
@@ -37,25 +39,28 @@ class FixParser():
 
     def set_city(self):
         self.page.goto("https://fix-price.com/")
+        self.page.wait_for_load_state('load')
         self.page.get_by_text("Москва").click()
+        # Ожидаем появления элемента с placeholder 'Ваш город'
+        self.page.wait_for_selector('input[placeholder="Ваш город"]')
+        # Вводим значение в поле 'Ваш город'
+        self.page.fill('input[placeholder="Ваш город"]', 'Брянск')
+        time.sleep(10)
+        self.page.wait_for_selector('//*[@id="modal"]/div/div[4]/div/div[1]').click()
         time.sleep(2)
-        self.page.get_by_placeholder(text='Ваш город').type(text='Брянск', delay=0.5)
-        time.sleep(5)
-        self.page.locator('//*[@id="modal"]/div/div[4]/div/div[1]').click()
-        time.sleep(5)
         self.page.locator('//*[@id="modal"]/div/div/div/button[2]').click()
         self.page.locator('//*[@id="app-header"]/header/div/div[1]/div[1]/div[2]/div[2]/div[1]').click()
         self.page.locator('//*[@id="modal"]/div/div/div/div[3]/div/div[2]/div').click()  # выбрать магазин
-        time.sleep(5)
+        time.sleep(2)
         find_shop_placeholder = self.page.locator(
             '//*[@id="modal"]/div/div/div[2]/div/div[2]/div[2]/div[1]/div[2]/div[1]/div[1]/div[1]/input')
         find_shop_placeholder.click()
         find_shop_placeholder.type(text='г.Брянск, ул.Бежицкая, д.1Б', delay=1.5)
-        time.sleep(5)
+        time.sleep(3)
         self.page.locator('//*[@id="modal"]/div/div/div[2]/div/div[2]/div[2]/div[1]/div[2]/div[5]/div/div[1]').click()
-        time.sleep(5)
+        time.sleep(2)
         self.page.locator('//*[1]/ymaps/div/div/button/span').click()
-        time.sleep(30)
+        time.sleep(2)
 
         # # ---------------------
         # context.close()
@@ -64,32 +69,37 @@ class FixParser():
     def get_data_from_articles(self, articles):
         for art in tqdm(articles):
             self.page.goto(f'{self.__main_url}catalog/{art}')
-            name = self.page.wait_for_selector(".product-details .title", timeout=10000).inner_text()
-            price = self.page.wait_for_selector(".product-details .regular-price", timeout=10000).inner_text()
-            description = self.page.wait_for_selector(".product-details .description", timeout=10000).inner_text()
-            properties = self.page.wait_for_selector(".product-details .properties", timeout=10000).inner_text()
+            self.page.wait_for_load_state('load')
+            stock_product = self.page.wait_for_selector('.product-stock .text',
+                                                        timeout=10000).inner_text()  # Установите нужное время ожидания в миллисекундах.
+            if stock_product == 'Нет в наличии':
+                print(f'{bcolors.WARNING}Нет в наличии{bcolors.ENDC} {art}')
+                # with open('out_of_stock.txt', 'a') as output:
+                #     output.write(art + '\n')
+                continue
+            elif stock_product == 'В наличии':
+                print(f' {bcolors.OKGREEN}[+]{bcolors.ENDC} {art}')
+                self.page.wait_for_selector('[data-test="button"]', timeout=10000).click()
+                self.page.fill('[data-test="counter-value"]', '999')
 
-            # Извлекаем данные и создаем словарь
-            data = {}
-            properties = self.page.query_selector_all(".properties .property")
-            for property_element in properties:
-                title = property_element.query_selector("span.title").inner_text()
-                value = property_element.query_selector("span.value").inner_text()
-                data[title] = value
+                value = self.page.evaluate('(element) => element.value', self.page.locator('[data-test="counter-value"]'))
 
-            # # Устанавливаем контент страницы на основе HTML
-            # html = self.page.content()
-            # self.page.set_content(html)
-            #
-            # # Получаем значение "code"
-            # code_element = self.page.query_selector("span.title:has-text('Код товара') + span.value")
-            # code = code_element.inner_text()
-            #
-            # # Получаем значение "packing_width"
-            # packing_width_element = self.page.query_selector("span.title:has-text('Ширина упаковки, мм.') + span.value")
-            # packing_width = packing_width_element.inner_text()
+                stock = self.page.locator('[data-test="counter-value"]').get_attribute('value')
+                name = self.page.wait_for_selector(".product-details .title", timeout=10000).inner_text()
+                price = self.page.wait_for_selector(".product-details .regular-price", timeout=10000).inner_text()
+                description = self.page.wait_for_selector(".product-details .description", timeout=10000).inner_text()
+                properties = self.page.wait_for_selector(".product-details .properties", timeout=10000).inner_text()
 
-            print()
+                # Извлекаем данные и создаем словарь
+                data = {}
+                properties = self.page.query_selector_all(".properties .property")
+                for property_element in properties:
+                    title = property_element.query_selector("span.title").inner_text()
+                    value = property_element.query_selector("span.value").inner_text()
+                    data[title] = value
+                print()
+            else:
+                print(f'{bcolors.FAIL}НЕ ОПРЕДЕЛЕНО наличие товара: {art}')
 
     def start(self):
         with sync_playwright() as playwright:
@@ -97,7 +107,7 @@ class FixParser():
             self.context = self.browser.new_context()
             self.page = self.context.new_page()
             self.page.add_init_script(self.js)
-            # self.set_city()
+            self.set_city()
             articles = self.read_articles_from_txt()
             self.get_data_from_articles(articles)
 
