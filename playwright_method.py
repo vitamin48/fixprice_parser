@@ -75,109 +75,91 @@ class FixParser():
     def get_data_from_articles(self, articles):
         count_for_clear_cart = 0
         for art in tqdm(articles):
-            attempt = 3
-            while attempt > 0:
-                try:
-                    self.page.goto(f'{self.__main_url}catalog/{art}')
-                    self.page.wait_for_load_state('load')
+            try:
+                self.page.goto(f'{self.__main_url}catalog/{art}')
+                self.page.wait_for_load_state('load')
+                time.sleep(1)
+                stock_product = self.page.wait_for_selector('.product-stock .text',
+                                                            timeout=10000).inner_text()  # Установите нужное время ожидания в миллисекундах.
+                if stock_product == 'Нет в наличии':
+                    with open('out_of_stock.txt', 'a') as output:
+                        output.write(art + '\n')
+                    count_for_clear_cart += 1
+                elif stock_product == 'В наличии':
+                    count_for_clear_cart += 1
+                    print(f' {bcolors.OKGREEN}[+]{bcolors.ENDC} {art}')
+                    with open('available_in_stock.txt', 'a') as output:
+                        output.write(art + '\n')
+                    self.page.wait_for_selector('[data-test="button"]', timeout=10000).click()
+                    self.page.fill('[data-test="counter-value"]', '999')
+                    self.page.wait_for_timeout(3000)
                     time.sleep(1)
-                    stock_product = self.page.wait_for_selector('.product-stock .text',
-                                                                timeout=10000).inner_text()  # Установите нужное время ожидания в миллисекундах.
-                    if stock_product == 'Нет в наличии':
-                        with open('out_of_stock.txt', 'a') as output:
-                            output.write(art + '\n')
-                        attempt = 0
-                        count_for_clear_cart += 1
-                        print(f'count_for_clear_cart Нет в= {count_for_clear_cart}')
-                    elif stock_product == 'В наличии':
-                        attempt = 0
-                        count_for_clear_cart += 1
-                        print(f'count_for_clear_cart В наличии = {count_for_clear_cart}')
-                        print(f' {bcolors.OKGREEN}[+]{bcolors.ENDC} {art}')
-                        with open('available_in_stock.txt', 'a') as output:
-                            output.write(art + '\n')
-                        self.page.wait_for_selector('[data-test="button"]', timeout=10000).click()
-                        self.page.fill('[data-test="counter-value"]', '999')
-                        self.page.wait_for_timeout(3000)
-                        stock = self.page.evaluate(
-                            '() => { return document.querySelector("#__layout > div > div > div.page-content > div > div > '
-                            'div > div > div.product > div.product-details > div.price-quantity-block > '
-                            'div.price-wrapper.price > div > div > div.quantity > div > input").value; }')
-                        name = self.page.wait_for_selector(".product-details .title", timeout=10000).inner_text()
-                        price = self.page.wait_for_selector(".product-details .regular-price",
-                                                            timeout=10000).inner_text()
-                        price = float(price.replace(' ₽', '').replace(',', '.'))
-                        description = self.page.wait_for_selector(".product-details .description",
-                                                                  timeout=10000).inner_text()
-                        # properties = self.page.wait_for_selector(".product-details .properties", timeout=10000).inner_text()
+                    stock = self.page.evaluate(
+                        '() => { return document.querySelector("#__layout > div > div > div.page-content > div > div > '
+                        'div > div > div.product > div.product-details > div.price-quantity-block > '
+                        'div.price-wrapper.price > div > div > div.quantity > div > input").value; }')
+                    name = self.page.wait_for_selector(".product-details .title", timeout=10000).inner_text()
+                    price = self.page.wait_for_selector(".product-details .regular-price",
+                                                        timeout=10000).inner_text()
+                    price = float(price.replace(' ₽', '').replace(',', '.'))
+                    description = self.page.wait_for_selector(".product-details .description",
+                                                              timeout=10000).inner_text()
 
-                        # Извлекаем данные и создаем словарь
-                        data = {}
-                        properties = self.page.query_selector_all(".properties .property")
-                        for property_element in properties:
-                            title = property_element.query_selector("span.title").inner_text()
-                            value = property_element.query_selector("span.value").inner_text()
-                            data[title] = value
-                        self.code.append(data.get('Код товара', '-'))
-                        self.packing_width.append(data.get('Ширина, мм.', '-'))
-                        self.packing_height.append(data.get('Высота, мм.', '-'))
-                        self.package_length.append(data.get('Длина, мм.', '-'))
-                        self.weight.append(data.get('Вес, гр.', '-'))
-                        self.country.append(data.get('Страна производства', '-'))
-                        self.brand.append(data.get('Бренд', 'NoName'))
-                        self.stocks.append(stock)
-                        self.name.append(name)
-                        self.price.append(price)
-                        self.description.append(description)
+                    # Извлекаем данные и создаем словарь
+                    data = {}
+                    properties = self.page.query_selector_all(".properties .property")
+                    for property_element in properties:
+                        title = property_element.query_selector("span.title").inner_text()
+                        value = property_element.query_selector("span.value").inner_text()
+                        data[title] = value
+                    self.code.append(data.get('Код товара', '-'))
+                    self.packing_width.append(data.get('Ширина, мм.', '-'))
+                    self.packing_height.append(data.get('Высота, мм.', '-'))
+                    self.package_length.append(data.get('Длина, мм.', '-'))
+                    self.weight.append(data.get('Вес, гр.', '-'))
+                    self.country.append(data.get('Страна производства', '-'))
+                    self.brand.append(data.get('Бренд', 'NoName'))
+                    self.stocks.append(stock)
+                    self.name.append(name)
+                    self.price.append(price)
+                    self.description.append(description)
 
-                        image_links = self.page.query_selector_all('img')
-                        filtered_links = [
-                            img.get_attribute('src')
-                            for img in image_links
-                            if img.get_attribute('src') is not None
-                               and img.get_attribute('src').startswith('https://img.fix-price.com/')
-                               and img.get_attribute('src').endswith('.jpg')
-                               and '800x800' in img.get_attribute('src')
-                        ]
-                        url_img = list(set(filtered_links))
-                        if len(url_img) > 14:
-                            url_img = url_img[:14]
-                        self.url_img.append(url_img)
-                        if count_for_clear_cart > 80:
-                            print('Очищаем корзинку В наличии')
-                            self.clear_cart()
-                            count_for_clear_cart = 0
-                    else:
-                        print(f'{bcolors.FAIL}НЕ ОПРЕДЕЛЕНО наличие товара: {art}')
-                        with open('articles_with_bad_req.txt', 'a') as output:
-                            output.write(art + '\n')
-                        attempt -= 1
-                        print(f'count_for_clear_cart НЕ ОПРЕДЕЛЕНО= {count_for_clear_cart}')
-                except Exception as exp:
-                    print(f'count_for_clear_cart Exception = {count_for_clear_cart}')
-                    attempt -= 1
-                    print(f'{bcolors.FAIL}Ошибка при загрузке: {art},\n\n осталось попыток: '
-                          f'{attempt}{bcolors.ENDC}\n\n{exp}')
-                    time.sleep(10)
-                    print('Очищаем корзину')
-                    self.clear_cart()
-                    count_for_clear_cart = 0
-                # finally:
-                #     print(f'count_for_clear_cart finally = {count_for_clear_cart}')
-                #     if count_for_clear_cart > 80:
-                #         print('Очищаем корзинку finally')
-                #         self.clear_cart()
-                #         count_for_clear_cart = 0
+                    image_links = self.page.query_selector_all('img')
+                    filtered_links = [
+                        img.get_attribute('src')
+                        for img in image_links
+                        if img.get_attribute('src') is not None
+                           and img.get_attribute('src').startswith('https://img.fix-price.com/')
+                           and img.get_attribute('src').endswith('.jpg')
+                           and '800x800' in img.get_attribute('src')
+                    ]
+                    url_img = list(set(filtered_links))
+                    if len(url_img) > 14:
+                        url_img = url_img[:14]
+                    self.url_img.append(url_img)
+                    # self.check_control_sum()
+                    if count_for_clear_cart > 80:
+                        print('\nОчищаем корзинку В наличии')
+                        self.clear_cart()
+                        count_for_clear_cart = 0
+                else:
+                    print(f'{bcolors.FAIL}НЕ ОПРЕДЕЛЕНО наличие товара: {art}')
+                    with open('articles_with_bad_req.txt', 'a') as output:
+                        output.write('НЕ ОПРЕДЕЛЕНО наличие товара: ' + art + '\n')
+            except Exception as exp:
+                print(f'{bcolors.FAIL}ОШИБКА! В articles_with_bad_req.txt добавлено: \n{bcolors.ENDC}{art}\n\n{exp}')
+                with open('articles_with_bad_req.txt', 'a') as output:
+                    output.write(art + '\n')
+                time.sleep(10)
 
     def clear_cart(self):
         time.sleep(10)
-        self.page.goto(f'https://fix-price.com/cart')
-        null = self.page.get_by_text('0 ₽')
-        if null:
-            pass
-        else:
+        try:
+            self.page.goto(f'https://fix-price.com/cart', timeout=10000)
             time.sleep(10)
             self.page.get_by_text("Удалить выбранные").click()
+        except:
+            print(f'{bcolors.OKCYAN}Корзина не была очищена{bcolors.ENDC}')
 
     def create_df(self):
         self.res_df_ozon.insert(0, 'Артикул', [f'p_{x}' for x in self.code])
@@ -194,7 +176,7 @@ class FixParser():
         self.res_df_ozon.insert(11, 'Производитель', self.country)
         self.res_df_ozon.insert(12, 'Ссылка на главное фото товара', [x[0] for x in self.url_img])
         self.res_df_ozon.insert(13, 'Ссылки на фото товара',
-                                [' '.join(map(str, x)) for x in [x[1:] for x in self.url_img]])
+                                [' '.join(map(str, x)) for x in [x[1:] if len(x) > 1 else '-' for x in self.url_img]])
 
         self.res_df_wb.insert(0, 'Артикул', [f'p_{x}' for x in self.code])
         self.res_df_wb.insert(1, 'Название', self.name)
@@ -210,7 +192,7 @@ class FixParser():
         self.res_df_wb.insert(11, 'Производитель', self.country)
         self.res_df_wb.insert(12, 'Ссылка на главное фото товара', [x[0] for x in self.url_img])
         self.res_df_wb.insert(13, 'Ссылки на фото товара',
-                              [';'.join(map(str, x)) for x in [x[1:] for x in self.url_img]])
+                              [';'.join(map(str, x)) for x in [x[1:] if len(x) > 1 else '-' for x in self.url_img]])
 
     def create_xls(self):
         """Создание файла excel из 1-го DataFrame"""
@@ -241,6 +223,14 @@ class FixParser():
         writer.sheets["WB"].set_column(14, 14, 30)
 
         writer.close()
+
+    def check_control_sum(self):
+        if len(self.code) == len(self.name) == len(self.price) == len(self.stocks) == len(self.brand) == \
+                len(self.description) == len(self.weight) == len(self.packing_width) == len(self.packing_height) == \
+                len(self.package_length) == len(self.country) == len(self.url_img):
+            return
+        else:
+            breakpoint()
 
     def send_logs_to_telegram(self, message):
         import platform
@@ -277,8 +267,7 @@ class FixParser():
                 self.create_xls()
         except Exception as exp:
             print(exp)
-            res = self.send_logs_to_telegram(message=f'Произошла ошибка!\n\n\n{exp}')
-            print(res)
+            self.send_logs_to_telegram(message=f'Произошла ошибка!\n\n\n{exp}')
         t2 = datetime.datetime.now()
         print(f'Finish: {t2}, TIME: {t2 - t1}')
         self.send_logs_to_telegram(message=f'Finish: {t2}, TIME: {t2 - t1}')
