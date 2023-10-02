@@ -78,7 +78,7 @@ class FixParser():
             try:
                 self.page.goto(f'{self.__main_url}catalog/{art}')
                 self.page.wait_for_load_state('load')
-                time.sleep(1)
+                # time.sleep(1)
                 stock_product = self.page.wait_for_selector('.product-stock .text',
                                                             timeout=10000).inner_text()  # Установите нужное время ожидания в миллисекундах.
                 if stock_product == 'Нет в наличии':
@@ -102,12 +102,15 @@ class FixParser():
                     price = self.page.wait_for_selector(".product-details .regular-price",
                                                         timeout=10000).inner_text()
                     price = float(price.replace(' ₽', '').replace(',', '.'))
-                    description = self.page.wait_for_selector(".product-details .description",
-                                                              timeout=10000).inner_text()
+                    # description = self.page.wait_for_selector(".product-details .description",
+                    #                                           timeout=10000).inner_text()
+                    description_element = self.page.query_selector(".product-details .description")
+                    description = description_element.inner_text() if description_element else '-'
 
                     # Извлекаем данные и создаем словарь
                     data = {}
                     properties = self.page.query_selector_all(".properties .property")
+                    time.sleep(1)
                     for property_element in properties:
                         title = property_element.query_selector("span.title").inner_text()
                         value = property_element.query_selector("span.value").inner_text()
@@ -130,13 +133,16 @@ class FixParser():
                         for img in image_links
                         if img.get_attribute('src') is not None
                            and img.get_attribute('src').startswith('https://img.fix-price.com/')
-                           and img.get_attribute('src').endswith('.jpg')
                            and '800x800' in img.get_attribute('src')
                     ]
                     url_img = list(set(filtered_links))
                     if len(url_img) > 14:
                         url_img = url_img[:14]
-                    self.url_img.append(url_img)
+                    if url_img:
+                        self.url_img.append(url_img)
+                    else:
+                        url_img = ''
+                        self.url_img.append(url_img)
                     # self.check_control_sum()
                     if count_for_clear_cart > 80:
                         print('\nОчищаем корзинку В наличии')
