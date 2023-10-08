@@ -78,10 +78,11 @@ class FixParser():
             try:
                 self.page.goto(f'{self.__main_url}catalog/{art}')
                 self.page.wait_for_load_state('load')
-                # time.sleep(1)
+                time.sleep(1)
                 stock_product = self.page.wait_for_selector('.product-stock .text',
                                                             timeout=10000).inner_text()  # Установите нужное время ожидания в миллисекундах.
                 if stock_product == 'Нет в наличии':
+                    print(f'{bcolors.WARNING}Нет в наличии{bcolors.ENDC} {art}')
                     with open('out_of_stock.txt', 'a') as output:
                         output.write(art + '\n')
                     count_for_clear_cart += 1
