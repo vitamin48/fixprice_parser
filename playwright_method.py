@@ -40,6 +40,11 @@ class FixParser():
             articles = [f'{line}'.rstrip() for line in file]
             return articles
 
+    def read_bad_brand(self):
+        with open('bad_brand.txt', 'r', encoding='utf-8') as file:
+            bad_brand = [f'{line}'.rstrip().lower() for line in file]
+            return bad_brand
+
     def set_city(self):
         print(f'{bcolors.OKGREEN}Устанавливаем город{bcolors.ENDC}')
         self.page.goto("https://fix-price.com/")
@@ -72,7 +77,7 @@ class FixParser():
         # context.close()
         # browser.close()
 
-    def get_data_from_articles(self, articles):
+    def get_data_from_articles(self, articles, bad_brand):
         count_for_clear_cart = 0
         for art in tqdm(articles):
             try:
@@ -82,13 +87,14 @@ class FixParser():
                 stock_product = self.page.wait_for_selector('.product-stock .text',
                                                             timeout=10000).inner_text()  # Установите нужное время ожидания в миллисекундах.
                 if stock_product == 'Нет в наличии':
-                    print(f'{bcolors.WARNING}Нет в наличии{bcolors.ENDC} {art}')
+                    print(f'{bcolors.WARNING}Нет в наличии:{bcolors.ENDC} {art}')
                     with open('out_of_stock.txt', 'a') as output:
                         output.write(art + '\n')
                     count_for_clear_cart += 1
                 elif stock_product == 'В наличии':
                     count_for_clear_cart += 1
                     print(f' {bcolors.OKGREEN}[+]{bcolors.ENDC} {art}')
+                    self.page.wait_for_load_state('load')
                     with open('available_in_stock.txt', 'a') as output:
                         output.write(art + '\n')
                     self.page.wait_for_selector('[data-test="button"]', timeout=10000).click()
@@ -116,39 +122,46 @@ class FixParser():
                         title = property_element.query_selector("span.title").inner_text()
                         value = property_element.query_selector("span.value").inner_text()
                         data[title] = value
-                    self.code.append(data.get('Код товара', '-'))
-                    self.packing_width.append(data.get('Ширина, мм.', '-'))
-                    self.packing_height.append(data.get('Высота, мм.', '-'))
-                    self.package_length.append(data.get('Длина, мм.', '-'))
-                    self.weight.append(data.get('Вес, гр.', '-'))
-                    self.country.append(data.get('Страна производства', '-'))
-                    self.brand.append(data.get('Бренд', 'NoName'))
-                    self.stocks.append(stock)
-                    self.name.append(name)
-                    self.price.append(price)
-                    self.description.append(description)
-
-                    image_links = self.page.query_selector_all('img')
-                    filtered_links = [
-                        img.get_attribute('src')
-                        for img in image_links
-                        if img.get_attribute('src') is not None
-                           and img.get_attribute('src').startswith('https://img.fix-price.com/')
-                           and '800x800' in img.get_attribute('src')
-                    ]
-                    url_img = list(set(filtered_links))
-                    if len(url_img) > 14:
-                        url_img = url_img[:14]
-                    if url_img:
-                        self.url_img.append(url_img)
+                    brand = data.get('Бренд', 'NoName')
+                    if brand.lower() in bad_brand:
+                        print(f'{bcolors.WARNING}Товар {art} из списка нежелательных брэндов ({brand}){bcolors.ENDC}')
+                        with open('articles_with_bad_req.txt', 'a') as output:
+                            output.write(f'НЕЖЕЛАТЕЛЬНЫЙ БРЭНД: {art}\n')
+                        continue
                     else:
-                        url_img = ''
-                        self.url_img.append(url_img)
-                    # self.check_control_sum()
-                    if count_for_clear_cart > 80:
-                        print('\nОчищаем корзинку В наличии')
-                        self.clear_cart()
-                        count_for_clear_cart = 0
+                        self.code.append(data.get('Код товара', '-'))
+                        self.packing_width.append(data.get('Ширина, мм.', '-'))
+                        self.packing_height.append(data.get('Высота, мм.', '-'))
+                        self.package_length.append(data.get('Длина, мм.', '-'))
+                        self.weight.append(data.get('Вес, гр.', '-'))
+                        self.country.append(data.get('Страна производства', '-'))
+                        self.brand.append(brand)
+                        self.stocks.append(stock)
+                        self.name.append(name)
+                        self.price.append(price)
+                        self.description.append(description)
+
+                        image_links = self.page.query_selector_all('img')
+                        filtered_links = [
+                            img.get_attribute('src')
+                            for img in image_links
+                            if img.get_attribute('src') is not None
+                               and img.get_attribute('src').startswith('https://img.fix-price.com/')
+                               and '800x800' in img.get_attribute('src')
+                        ]
+                        url_img = list(set(filtered_links))
+                        if len(url_img) > 14:
+                            url_img = url_img[:14]
+                        if url_img:
+                            self.url_img.append(url_img)
+                        else:
+                            url_img = ''
+                            self.url_img.append(url_img)
+                        # self.check_control_sum()
+                        if count_for_clear_cart > 80:
+                            print('\nОчищаем корзинку В наличии')
+                            self.clear_cart()
+                            count_for_clear_cart = 0
                 else:
                     print(f'{bcolors.FAIL}НЕ ОПРЕДЕЛЕНО наличие товара: {art}')
                     with open('articles_with_bad_req.txt', 'a') as output:
@@ -267,17 +280,17 @@ class FixParser():
                 self.page.add_init_script(self.js)
                 self.set_city()
                 articles = self.read_articles_from_txt()
-                self.get_data_from_articles(articles)
+                self.get_data_from_articles(articles, bad_brand=self.read_bad_brand())
                 self.context.close()
                 self.browser.close()
                 self.create_df()
                 self.create_xls()
         except Exception as exp:
             print(exp)
-            self.send_logs_to_telegram(message=f'Произошла ошибка!\n\n\n{exp}')
+            # self.send_logs_to_telegram(message=f'Произошла ошибка!\n\n\n{exp}')
         t2 = datetime.datetime.now()
         print(f'Finish: {t2}, TIME: {t2 - t1}')
-        self.send_logs_to_telegram(message=f'Finish: {t2}, TIME: {t2 - t1}')
+        # self.send_logs_to_telegram(message=f'Finish: {t2}, TIME: {t2 - t1}')
 
 
 if __name__ == '__main__':
