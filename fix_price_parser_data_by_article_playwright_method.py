@@ -7,6 +7,7 @@ import pandas as pd
 
 from fix_price_parser_data_by_article import bcolors
 
+from bs4 import BeautifulSoup
 from playwright.sync_api import Playwright, sync_playwright, expect
 
 
@@ -98,13 +99,16 @@ class FixParser():
                     with open('available_in_stock.txt', 'a') as output:
                         output.write(art + '\n')
                     self.page.wait_for_selector('[data-test="button"]', timeout=10000).click()
-                    self.page.fill('[data-test="counter-value"]', '999')
-                    self.page.wait_for_timeout(3000)
                     time.sleep(1)
+                    self.page.fill('[data-test="counter-value"]', '99')
+                    self.page.wait_for_timeout(3000)
+                    time.sleep(2)
                     stock = self.page.evaluate(
                         '() => { return document.querySelector("#__layout > div > div > div.page-content > div > div > '
                         'div > div > div.product > div.product-details > div.price-quantity-block > '
                         'div.price-wrapper.price > div > div > div.quantity > div > input").value; }')
+                    if stock == '1':
+                        print("stock == '1'!")
                     name = self.page.wait_for_selector(".product-details .title", timeout=10000).inner_text()
                     price = self.page.wait_for_selector(".product-details .regular-price",
                                                         timeout=10000).inner_text()
@@ -141,22 +145,48 @@ class FixParser():
                         self.price.append(price)
                         self.description.append(description)
 
-                        image_links = self.page.query_selector_all('img')
-                        filtered_links = [
-                            img.get_attribute('src')
-                            for img in image_links
-                            if img.get_attribute('src') is not None
-                               and img.get_attribute('src').startswith('https://img.fix-price.com/')
-                               and '800x800' in img.get_attribute('src')
-                        ]
-                        url_img = list(set(filtered_links))
-                        if len(url_img) > 14:
-                            url_img = url_img[:14]
-                        if url_img:
-                            self.url_img.append(url_img)
+                        soup = BeautifulSoup(self.page.content(), 'lxml')
+                        product_images = soup.find('div', class_='product-images')
+                        img_list = []
+                        swiper_wrapper = product_images.find('div', class_='swiper-wrapper')
+                        if swiper_wrapper:
+                            for sw in swiper_wrapper:
+                                len_contents = len(sw.next.contents)
+                                if len_contents > 7:
+                                    img = sw.next.contents[6].attrs['src']
+                                    img = img.replace('800x800/', '')
+                                    img_list.append(img)
+                                else:
+                                    img_list.append('-+'
+                                                    ' ')
                         else:
-                            url_img = ''
-                            self.url_img.append(url_img)
+                            img = \
+                                soup.find('div', class_='product-images').find('div', class_='zoom-on-hover').contents[
+                                    6].attrs[
+                                    'src']
+                            img = img.replace('800x800/', '')
+                            img_list.append(img)
+                            img_list.append('-')
+                        if len(img_list) > 14:
+                            img_list = img_list[13:]
+                        self.url_img.append(img_list)
+
+                        # image_links = self.page.query_selector_all('img')
+                        # filtered_links = [
+                        #     img.get_attribute('src')
+                        #     for img in image_links
+                        #     if img.get_attribute('src') is not None
+                        #        and img.get_attribute('src').startswith('https://img.fix-price.com/')
+                        #        and '800x800' in img.get_attribute('src')
+                        # ]
+                        # url_img = list(set(filtered_links))
+                        # if len(url_img) > 14:
+                        #     url_img = url_img[:14]
+                        # if url_img:
+                        #     self.url_img.append(url_img)
+                        # else:
+                        #     url_img = ''
+                        #     self.url_img.append(url_img)
                         # self.check_control_sum()
                         if count_for_clear_cart > 80:
                             print('\nОчищаем корзинку В наличии')
