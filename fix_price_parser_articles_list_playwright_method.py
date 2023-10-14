@@ -1,3 +1,7 @@
+"""
+Скрипт считывает каталоги Fix-Price из файла catalogs.txt и собирает ссылки со всех имеющихся страниц в файл
+fix_price_articles.txt
+"""
 import requests
 import datetime
 import time

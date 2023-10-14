@@ -81,123 +81,117 @@ class FixParser():
     def get_data_from_articles(self, articles, bad_brand):
         count_for_clear_cart = 0
         for art in tqdm(articles):
-            try:
-                self.page.goto(f'{self.__main_url}catalog/{art}')
-                self.page.wait_for_load_state('load')
-                time.sleep(1)
-                stock_product = self.page.wait_for_selector('.product-stock .text',
-                                                            timeout=10000).inner_text()  # Установите нужное время ожидания в миллисекундах.
-                if stock_product == 'Нет в наличии':
-                    print(f'{bcolors.WARNING}Нет в наличии:{bcolors.ENDC} {art}')
-                    with open('out_of_stock.txt', 'a') as output:
-                        output.write(art + '\n')
-                    count_for_clear_cart += 1
-                elif stock_product == 'В наличии':
-                    count_for_clear_cart += 1
-                    print(f' {bcolors.OKGREEN}[+]{bcolors.ENDC} {art}')
+            max_attempts = 2
+            attempts = 0
+            while attempts < max_attempts:
+                try:
+                    self.page.goto(f'{self.__main_url}catalog/{art}')
                     self.page.wait_for_load_state('load')
-                    with open('available_in_stock.txt', 'a') as output:
-                        output.write(art + '\n')
-                    self.page.wait_for_selector('[data-test="button"]', timeout=10000).click()
                     time.sleep(1)
-                    self.page.fill('[data-test="counter-value"]', '99')
-                    self.page.wait_for_timeout(3000)
-                    time.sleep(2)
-                    stock = self.page.evaluate(
-                        '() => { return document.querySelector("#__layout > div > div > div.page-content > div > div > '
-                        'div > div > div.product > div.product-details > div.price-quantity-block > '
-                        'div.price-wrapper.price > div > div > div.quantity > div > input").value; }')
-                    if stock == '1':
-                        print("stock == '1'!")
-                    name = self.page.wait_for_selector(".product-details .title", timeout=10000).inner_text()
-                    price = self.page.wait_for_selector(".product-details .regular-price",
-                                                        timeout=10000).inner_text()
-                    price = float(price.replace(' ₽', '').replace(',', '.'))
-                    # description = self.page.wait_for_selector(".product-details .description",
-                    #                                           timeout=10000).inner_text()
-                    description_element = self.page.query_selector(".product-details .description")
-                    description = description_element.inner_text() if description_element else '-'
+                    stock_product = self.page.wait_for_selector('.product-stock .text',
+                                                                timeout=10000).inner_text()  # Установите нужное время ожидания в миллисекундах.
+                    if stock_product == 'Нет в наличии':
+                        print(f'{bcolors.WARNING}Нет в наличии:{bcolors.ENDC} {art}')
+                        with open('out_of_stock.txt', 'a') as output:
+                            output.write(art + '\n')
+                        count_for_clear_cart += 1
+                        break
+                    elif stock_product == 'В наличии':
+                        count_for_clear_cart += 1
+                        print(f' {bcolors.OKGREEN}[+]{bcolors.ENDC} {art}')
+                        self.page.wait_for_load_state('load')
+                        with open('available_in_stock.txt', 'a') as output:
+                            output.write(art + '\n')
+                        self.page.wait_for_selector('[data-test="button"]', timeout=10000).click()
+                        time.sleep(2)
+                        self.page.fill('[data-test="counter-value"]', '99')
+                        self.page.wait_for_timeout(3000)
+                        time.sleep(2)
+                        stock = self.page.evaluate(
+                            '() => { return document.querySelector("#__layout > div > div > div.page-content > div > div > '
+                            'div > div > div.product > div.product-details > div.price-quantity-block > '
+                            'div.price-wrapper.price > div > div > div.quantity > div > input").value; }')
+                        if stock == '1':
+                            print("stock == '1'!")
+                            with open('articles_with_bad_req.txt', 'a') as output:
+                                output.write(f'stock == 1: {art} + \n')
+                        name = self.page.wait_for_selector(".product-details .title", timeout=10000).inner_text()
+                        price = self.page.wait_for_selector(".product-details .regular-price",
+                                                            timeout=10000).inner_text()
+                        price = float(price.replace(' ₽', '').replace(',', '.'))
+                        # description = self.page.wait_for_selector(".product-details .description",
+                        #                                           timeout=10000).inner_text()
+                        description_element = self.page.query_selector(".product-details .description")
+                        description = description_element.inner_text() if description_element else '-'
 
-                    # Извлекаем данные и создаем словарь
-                    data = {}
-                    properties = self.page.query_selector_all(".properties .property")
-                    time.sleep(1)
-                    for property_element in properties:
-                        title = property_element.query_selector("span.title").inner_text()
-                        value = property_element.query_selector("span.value").inner_text()
-                        data[title] = value
-                    brand = data.get('Бренд', 'NoName')
-                    if brand.lower() in bad_brand:
-                        print(f'{bcolors.WARNING}Товар {art} из списка нежелательных брэндов ({brand}){bcolors.ENDC}')
-                        with open('articles_with_bad_req.txt', 'a') as output:
-                            output.write(f'НЕЖЕЛАТЕЛЬНЫЙ БРЭНД: {art}\n')
-                        continue
-                    else:
-                        self.code.append(data.get('Код товара', '-'))
-                        self.packing_width.append(data.get('Ширина, мм.', '-'))
-                        self.packing_height.append(data.get('Высота, мм.', '-'))
-                        self.package_length.append(data.get('Длина, мм.', '-'))
-                        self.weight.append(data.get('Вес, гр.', '-'))
-                        self.country.append(data.get('Страна производства', '-'))
-                        self.brand.append(brand)
-                        self.stocks.append(stock)
-                        self.name.append(name)
-                        self.price.append(price)
-                        self.description.append(description)
-
-                        soup = BeautifulSoup(self.page.content(), 'lxml')
-                        product_images = soup.find('div', class_='product-images')
-                        img_list = []
-                        swiper_wrapper = product_images.find('div', class_='swiper-wrapper')
-                        if swiper_wrapper:
-                            for sw in swiper_wrapper:
-                                len_contents = len(sw.next.contents)
-                                if len_contents > 7:
-                                    img = sw.next.contents[6].attrs['src']
-                                    img = img.replace('800x800/', '')
-                                    img_list.append(img)
-                                else:
-                                    img_list.append('-+'
-                                                    ' ')
+                        # Извлекаем данные и создаем словарь
+                        data = {}
+                        properties = self.page.query_selector_all(".properties .property")
+                        time.sleep(1)
+                        for property_element in properties:
+                            title = property_element.query_selector("span.title").inner_text()
+                            value = property_element.query_selector("span.value").inner_text()
+                            data[title] = value
+                        brand = data.get('Бренд', 'NoName')
+                        if brand.lower() in bad_brand:
+                            print(f'{bcolors.WARNING}Товар {art} из списка нежелательных брэндов ({brand}){bcolors.ENDC}')
+                            with open('articles_with_bad_req.txt', 'a') as output:
+                                output.write(f'НЕЖЕЛАТЕЛЬНЫЙ БРЭНД: {art}\n')
+                            break
                         else:
-                            img = \
-                                soup.find('div', class_='product-images').find('div', class_='zoom-on-hover').contents[
-                                    6].attrs[
-                                    'src']
-                            img = img.replace('800x800/', '')
-                            img_list.append(img)
-                            img_list.append('-')
-                        if len(img_list) > 14:
-                            img_list = img_list[13:]
-                        self.url_img.append(img_list)
+                            self.code.append(data.get('Код товара', '-'))
+                            self.packing_width.append(data.get('Ширина, мм.', '-'))
+                            self.packing_height.append(data.get('Высота, мм.', '-'))
+                            self.package_length.append(data.get('Длина, мм.', '-'))
+                            self.weight.append(data.get('Вес, гр.', '-'))
+                            self.country.append(data.get('Страна производства', '-'))
+                            self.brand.append(brand)
+                            self.stocks.append(stock)
+                            self.name.append(name)
+                            self.price.append(price)
+                            self.description.append(description)
 
-                        # image_links = self.page.query_selector_all('img')
-                        # filtered_links = [
-                        #     img.get_attribute('src')
-                        #     for img in image_links
-                        #     if img.get_attribute('src') is not None
-                        #        and img.get_attribute('src').startswith('https://img.fix-price.com/')
-                        #        and '800x800' in img.get_attribute('src')
-                        # ]
-                        # url_img = list(set(filtered_links))
-                        # if len(url_img) > 14:
-                        #     url_img = url_img[:14]
-                        # if url_img:
-                        #     self.url_img.append(url_img)
-                        # else:
-                        #     url_img = ''
-                        #     self.url_img.append(url_img)
-                        # self.check_control_sum()
-                        if count_for_clear_cart > 80:
-                            print('\nОчищаем корзинку В наличии')
-                            self.clear_cart()
-                            count_for_clear_cart = 0
-                else:
-                    print(f'{bcolors.FAIL}НЕ ОПРЕДЕЛЕНО наличие товара: {art}')
-                    with open('articles_with_bad_req.txt', 'a') as output:
-                        output.write('НЕ ОПРЕДЕЛЕНО наличие товара: ' + art + '\n')
-            except Exception as exp:
-                print(f'{bcolors.FAIL}ОШИБКА! В articles_with_bad_req.txt добавлено: \n{bcolors.ENDC}{art}\n\n{exp}')
+                            soup = BeautifulSoup(self.page.content(), 'lxml')
+                            product_images = soup.find('div', class_='product-images')
+                            img_list = []
+                            swiper_wrapper = product_images.find('div', class_='swiper-wrapper')
+                            if swiper_wrapper:
+                                for sw in swiper_wrapper:
+                                    len_contents = len(sw.next.contents)
+                                    if len_contents > 7:
+                                        img = sw.next.contents[6].attrs['src']
+                                        img = img.replace('800x800/', '')
+                                        img_list.append(img)
+                                    else:
+                                        img_list.append('-+'
+                                                        ' ')
+                            else:
+                                img = \
+                                    soup.find('div', class_='product-images').find('div', class_='zoom-on-hover').contents[
+                                        6].attrs[
+                                        'src']
+                                img = img.replace('800x800/', '')
+                                img_list.append(img)
+                                img_list.append('-')
+                            if len(img_list) > 14:
+                                img_list = img_list[13:]
+                            self.url_img.append(img_list)
+                            if count_for_clear_cart > 80:
+                                print('\nОчищаем корзинку В наличии')
+                                self.clear_cart()
+                                count_for_clear_cart = 0
+                            break
+                    else:
+                        print(f'{bcolors.FAIL}НЕ ОПРЕДЕЛЕНО наличие товара: {art}')
+                        with open('articles_with_bad_req.txt', 'a') as output:
+                            output.write('НЕ ОПРЕДЕЛЕНО наличие товара: ' + art + '\n')
+                except Exception as exp:
+                    attempts += 1
+                    print(f'\n{bcolors.OKCYAN}Новая попытка {attempts} из {max_attempts}{bcolors.ENDC}\n\n'
+                          f'Для артикула: {art}\n\nИсключение:\n\n{exp}')
+            if attempts == max_attempts:
+                print(f'{bcolors.FAIL}ОШИБКА! Все попытки исчерпаны. В articles_with_bad_req.txt добавлено: '
+                      f'\n{bcolors.ENDC}{art}\n')
                 with open('articles_with_bad_req.txt', 'a') as output:
                     output.write(art + '\n')
                 time.sleep(10)
@@ -317,10 +311,10 @@ class FixParser():
                 self.create_xls()
         except Exception as exp:
             print(exp)
-            # self.send_logs_to_telegram(message=f'Произошла ошибка!\n\n\n{exp}')
+            self.send_logs_to_telegram(message=f'Произошла ошибка!\n\n\n{exp}')
         t2 = datetime.datetime.now()
         print(f'Finish: {t2}, TIME: {t2 - t1}')
-        # self.send_logs_to_telegram(message=f'Finish: {t2}, TIME: {t2 - t1}')
+        self.send_logs_to_telegram(message=f'Finish: {t2}, TIME: {t2 - t1}')
 
 
 if __name__ == '__main__':
