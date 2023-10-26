@@ -49,6 +49,7 @@ class FixParser():
     def set_city(self):
         print(f'{bcolors.OKGREEN}Устанавливаем город{bcolors.ENDC}')
         self.page.goto("https://fix-price.com/")
+        self.page.set_viewport_size({'width': 2100, 'height': 1200})
         self.page.wait_for_load_state('load')
         self.page.get_by_text("Москва").click()
         # Ожидаем появления элемента с placeholder 'Ваш город'
