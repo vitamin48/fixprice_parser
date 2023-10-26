@@ -135,16 +135,50 @@ class FixParser():
                             data[title] = value
                         brand = data.get('Бренд', 'NoName')
                         if brand.lower() in bad_brand:
-                            print(f'{bcolors.WARNING}Товар {art} из списка нежелательных брэндов ({brand}){bcolors.ENDC}')
+                            print(
+                                f'{bcolors.WARNING}Товар {art} из списка нежелательных брэндов ({brand}){bcolors.ENDC}')
                             with open('articles_with_bad_req.txt', 'a') as output:
                                 output.write(f'НЕЖЕЛАТЕЛЬНЫЙ БРЭНД: {art}\n')
                             break
                         else:
                             self.code.append(data.get('Код товара', '-'))
-                            self.packing_width.append(data.get('Ширина, мм.', '-'))
-                            self.packing_height.append(data.get('Высота, мм.', '-'))
-                            self.package_length.append(data.get('Длина, мм.', '-'))
-                            self.weight.append(data.get('Вес, гр.', '-'))
+                            """Делаем проверку Ширины, Высоты и веса, т.к. где-то Ширина, а где-то Ширина упаковки"""
+                            # Ширина
+                            width_var1 = data.get('Ширина, мм.', None)
+                            width_var2 = data.get('Ширина упаковки, мм.', None)
+                            if width_var1 is not None:
+                                self.packing_width.append(width_var1)
+                            elif width_var2 is not None:
+                                self.packing_width.append(width_var2)
+                            else:
+                                self.packing_width.append('-')
+                            # Высота
+                            height_var1 = data.get('Высота, мм.', None)
+                            height_var2 = data.get('Высота упаковки, мм.', None)
+                            if height_var1 is not None:
+                                self.packing_height.append(height_var1)
+                            elif height_var2 is not None:
+                                self.packing_height.append(height_var2)
+                            else:
+                                self.packing_height.append('-')
+                            # Длина
+                            length_var1 = data.get('Длина, мм.', None)
+                            length_var2 = data.get('Длина упаковки, мм.', None)
+                            if length_var1 is not None:
+                                self.package_length.append(length_var1)
+                            elif length_var2 is not None:
+                                self.package_length.append(length_var2)
+                            else:
+                                self.package_length.append('-')
+                            # Вес
+                            weight_var1 = data.get('Вес, гр.', None)
+                            weight_var2 = data.get('Вес упаковки, гр.', None)
+                            if weight_var1 is not None:
+                                self.weight.append(weight_var1)
+                            elif weight_var2 is not None:
+                                self.weight.append(weight_var2)
+                            else:
+                                self.weight.append('-')
                             self.country.append(data.get('Страна производства', '-'))
                             self.brand.append(brand)
                             self.stocks.append(stock)
@@ -168,7 +202,8 @@ class FixParser():
                                                         ' ')
                             else:
                                 img = \
-                                    soup.find('div', class_='product-images').find('div', class_='zoom-on-hover').contents[
+                                    soup.find('div', class_='product-images').find('div',
+                                                                                   class_='zoom-on-hover').contents[
                                         6].attrs[
                                         'src']
                                 img = img.replace('800x800/', '')
