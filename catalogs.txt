@@ -1,1 +1,2 @@
-catalog/vse-dlya-novogo-goda
+catalog/dlya-zdorovykh-nachinaniy
+catalog/sad-i-ogorod

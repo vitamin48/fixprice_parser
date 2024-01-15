@@ -34,18 +34,23 @@ class ParserArticlesByCatalogs:
 
     def write_txt_file_all_articles(self):
         with open('fix_price_articles.txt', 'a') as output:
+            print('Записываю в файл')
             for row in self.all_art:
                 output.write(str(row[9:]) + '\n')
 
     def get_arts_in_catalogs(self, catalogs):
-        page = 1
         for i in catalogs:
+            page = 1
             while True:
                 self.page.goto(f'{self.__main_url}{i}?sort=sold&page={page}')
+                self.page.wait_for_selector('div.footer-feedback')
                 page += 1
-                time.sleep(3)
+                # time.sleep(3)
                 page_title = self.page.title()
-                if page_title != 'Ошибка 404: Страница не найдена':
+                product_wrapper = self.page.query_selector('.product__wrapper')
+                # error_element = self.page.query_selector('.error-404')
+                # if page_title != 'Ошибка 404: Страница не найдена':
+                if product_wrapper:
                     product_wrappers = self.page.query_selector_all('.product__wrapper')
                     for pw in product_wrappers:
                         url = pw.query_selector('.title').get_attribute('href')
