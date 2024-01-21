@@ -1,7 +1,22 @@
+"""
+Скрипт на основе playwright считывает ссылки на товары Fix-Price из файла fix_price_articles.txt,
+переходит по ним, предварительно установив город и адрес магазина из констант CITY и ADDRESS,
+считыват информацию и остатки каждого товара, если брэнда товара нет в файле bad_brand.txt,
+записывает результаты в файл XLS.
+
+Помимо результирующего файла XLS, формируются дополнительные файлы:
+articles_with_bad_req.txt - для ссылок, которые не удалось загрузить, либо товар из списка нежелательных
+брэндов
+available_in_stock.txt - товары, которые есть в наличии по указанному адресу магазина
+catalogs.txt - список каталогов сайта
+out_of_stock.txt - список товаров, остатки которых равны 0.
+"""
+
 import requests
 import datetime
 import time
 from tqdm import tqdm
+
 from pathlib import Path
 import pandas as pd
 
@@ -10,8 +25,10 @@ from fix_price_parser_data_by_article import bcolors
 from bs4 import BeautifulSoup
 from playwright.sync_api import Playwright, sync_playwright, expect
 
+CITY = 'Брянск'
+ADDRESS = 'г.Брянск, ул.Бежицкая, д.1Б'
 
-class FixParser():
+class FixParser:
     def __init__(self):
         self.save_path = f'{str(Path(__file__).parents[1])}'
         self.__main_url = 'https://fix-price.com/'
