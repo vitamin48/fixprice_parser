@@ -340,6 +340,26 @@ class FixParser:
         self.res_df_wb.insert(13, 'Ссылки на фото товара',
                               [';'.join(map(str, x)) for x in [x[1:] if len(x) > 1 else '-' for x in self.url_img]])
 
+    def create_df_by_dict(self):
+        # Преобразуйте словарь в DataFrame
+        pd.options.mode.copy_on_write = True
+        df = pd.DataFrame.from_dict(self.res_dict, orient='index')
+
+        # Выберите нужные столбцы
+        df_result = df[['name', 'price']]
+
+        # Переименуйте столбцы
+        df_result.columns = ['Название', 'Цена']
+
+        # Добавьте столбец с Артикулом
+        # df_result.loc[:, 'Артикул'] = df_result.index
+
+        df_result['Артикул'] = df_result.index.values
+        # Сбросьте индекс для чистоты
+        df_result.reset_index(drop=True, inplace=True)
+
+        print()
+
     def create_xls(self):
         """Создание файла excel из 1-го DataFrame"""
         file_name = f'FP_{self.code[0]}_{self.code[-1]}.xlsx'
@@ -409,7 +429,8 @@ class FixParser:
                 self.get_data_from_articles(articles, bad_brand=self.read_bad_brand(), playwright=playwright)
                 self.context.close()
                 self.browser.close()
-                self.create_df()
+                # self.create_df()
+                self.create_df_by_dict()
                 self.create_xls()
         except Exception as exp:
             print(exp)
