@@ -29,15 +29,32 @@ CITY = 'Брянск'
 ADDRESS = 'г.Брянск, ул.Бежицкая, д.1Б'
 
 
+def send_logs_to_telegram(message):
+    import platform
+    import socket
+    import os
+
+    platform = platform.system()
+    hostname = socket.gethostname()
+    user = os.getlogin()
+
+    bot_token = '6456958617:AAF8thQveHkyLLtWtD02Rq1UqYuhfT4LoTc'
+    chat_id = '128592002'
+
+    url = f'https://api.telegram.org/bot{bot_token}/sendMessage'
+    data = {"chat_id": chat_id, "text": message + f'\n\n{platform}\n{hostname}\n{user}'}
+    response = requests.post(url, data=data)
+    return response.json()
+
+
 class FixParser:
     def __init__(self):
         self.save_path = f'{str(Path(__file__).parents[1])}'
         self.__main_url = 'https://fix-price.com/'
-        # self.res_dict = {'url_code': [], 'code': [], 'name': [], 'price': [], 'stocks': [], 'brand': [],
-        #                  'description': [], 'weight': [], 'packing_width': [], 'packing_height': [],
-        #                  'package_length': [], 'country': [], 'url_img': []}
         self.res_dict = {}
-
+        self.browser = None
+        self.context = None
+        self.page = None
         self.res_df_ozon = pd.DataFrame()
         self.res_df_wb = pd.DataFrame()
         self.js = """
@@ -157,45 +174,15 @@ class FixParser:
                             # Ширина
                             width_var1 = data.get('Ширина, мм.', None)
                             width_var2 = data.get('Ширина упаковки, мм.', None)
-                            # if width_var1 is not None:
-                            #     self.packing_width.append(width_var1)
-                            # elif width_var2 is not None:
-                            #     self.packing_width.append(width_var2)
-                            # else:
-                            #     self.packing_width.append('-')
                             # Высота
                             height_var1 = data.get('Высота, мм.', None)
                             height_var2 = data.get('Высота упаковки, мм.', None)
-                            # if height_var1 is not None:
-                            #     self.packing_height.append(height_var1)
-                            # elif height_var2 is not None:
-                            #     self.packing_height.append(height_var2)
-                            # else:
-                            #     self.packing_height.append('-')
                             # Длина
                             length_var1 = data.get('Длина, мм.', None)
                             length_var2 = data.get('Длина упаковки, мм.', None)
-                            # if length_var1 is not None:
-                            #     self.package_length.append(length_var1)
-                            # elif length_var2 is not None:
-                            #     self.package_length.append(length_var2)
-                            # else:
-                            #     self.package_length.append('-')
                             # Вес
                             weight_var1 = data.get('Вес, гр.', None)
                             weight_var2 = data.get('Вес упаковки, гр.', None)
-                            # if weight_var1 is not None:
-                            #     self.weight.append(weight_var1)
-                            # elif weight_var2 is not None:
-                            #     self.weight.append(weight_var2)
-                            # else:
-                            #     self.weight.append('-')
-                            # self.country.append(data.get('Страна производства', '-'))
-                            # self.brand.append(brand)
-                            # self.stocks.append(stock)
-                            # self.name.append(name)
-                            # self.price.append(price)
-                            # self.description.append(description)
 
                             soup = BeautifulSoup(self.page.content(), 'lxml')
                             product_images = soup.find('div', class_='product-images')
@@ -222,37 +209,7 @@ class FixParser:
                                 img_list.append('-')
                             if len(img_list) > 14:
                                 img_list = img_list[13:]
-                            # self.url_img.append(img_list)
-                            # self.res_dict['url_code'].append(f'{self.__main_url}catalog/{art}')
-                            # self.res_dict['code'].extend(self.code)
-                            # self.res_dict['name'].extend(self.name)
-                            # self.res_dict['price'].extend(self.price)
-                            # self.res_dict['stocks'].extend(self.stocks)
-                            # self.res_dict['brand'].extend(self.brand)
-                            # self.res_dict['description'].extend(self.description)
-                            # self.res_dict['weight'].extend(self.weight)
-                            # self.res_dict['packing_width'].extend(self.packing_width)
-                            # self.res_dict['packing_height'].extend(self.packing_height)
-                            # self.res_dict['package_length'].extend(self.package_length)
-                            # self.res_dict['country'].extend(self.country)
-                            # self.res_dict['url_img'].extend(self.url_img)
-                            # ----------------------------
-                            # self.res_dict['code'].append(data.get('Код товара', '-'))
-                            # self.res_dict['name'].append(name)
-                            # self.res_dict['price'].append(price)
-                            # self.res_dict['stocks'].append(stock)
-                            # self.res_dict['brand'].append(brand)
-                            # self.res_dict['description'].append(description)
-                            # self.res_dict['weight'].append(
-                            #     weight_var1 if weight_var1 else (weight_var2 if weight_var2 else '-'))
-                            # self.res_dict['packing_width'].append(
-                            #     width_var1 if width_var1 else (width_var2 if width_var2 else '-'))
-                            # self.res_dict['packing_height'].append(
-                            #     height_var1 if height_var1 else (height_var2 if height_var2 else '-'))
-                            # self.res_dict['package_length'].append(
-                            #     length_var1 if length_var1 else (length_var2 if length_var2 else '-'))
-                            # self.res_dict['country'].append(data.get('Страна производства', '-'))
-                            # self.res_dict['url_img'].append(img_list)
+
                             code = data.get('Код товара', '-')
                             self.res_dict[code] = {'name': name, 'price': price, 'stock': stock, 'brand': brand,
                                                    'description': description,
@@ -265,12 +222,8 @@ class FixParser:
                                                    'package_length': length_var1 if length_var1 else (
                                                        length_var2 if length_var2 else '-'),
                                                    'country': data.get('Страна производства', '-'), 'url_img': img_list}
-                            # data_code = {}
-                            # data_code[code]['name'] = name
-                            # data_code[code]['price'] = price
-                            # self.res_dict[data.get('Код товара', '-')]
-                            with open('data.json', 'w') as json_file:
-                                json.dump(self.res_dict, json_file, indent=2)
+                            with open('data.json', 'w', encoding='utf-8') as json_file:
+                                json.dump(self.res_dict, json_file, indent=2, ensure_ascii=False)
                             # with open('data.pickle', 'wb') as file:
                             #     pickle.dump(self.res_dict, file)
                             if count_for_clear_cart > 80:
@@ -307,62 +260,66 @@ class FixParser:
         except:
             print(f'{bcolors.OKCYAN}Корзина не была очищена{bcolors.ENDC}')
 
-    def create_df(self):
-        self.res_df_ozon.insert(0, 'Артикул', [f'p_{x}' for x in self.code])
-        self.res_df_ozon.insert(1, 'Название', self.name)
-        self.res_df_ozon.insert(2, 'Цена FixPrice', self.price)
-        self.res_df_ozon.insert(3, 'Цена для OZON', [390 if x * 4 < 390 else round(x * 3.3) for x in self.price])
-        self.res_df_ozon.insert(4, 'Остаток на Бежицкой 1Б', self.stocks)
-        self.res_df_ozon.insert(5, 'Брэнд', self.brand)
-        self.res_df_ozon.insert(6, 'Описание', self.description)
-        self.res_df_ozon.insert(7, 'Вес, г', self.weight)
-        self.res_df_ozon.insert(8, 'Ширина, мм', self.packing_width)
-        self.res_df_ozon.insert(9, 'Высота, мм', self.packing_height)
-        self.res_df_ozon.insert(10, 'Длина, мм', self.package_length)
-        self.res_df_ozon.insert(11, 'Производитель', self.country)
-        self.res_df_ozon.insert(12, 'Ссылка на главное фото товара', [x[0] for x in self.url_img])
-        self.res_df_ozon.insert(13, 'Ссылки на фото товара',
-                                [' '.join(map(str, x)) for x in [x[1:] if len(x) > 1 else '-' for x in self.url_img]])
-
-        self.res_df_wb.insert(0, 'Артикул', [f'p_{x}' for x in self.code])
-        self.res_df_wb.insert(1, 'Название', self.name)
-        self.res_df_wb.insert(2, 'Цена FixPrice', self.price)
-        self.res_df_wb.insert(3, 'Цена для WB', [390 if x * 4 < 390 else round(x * 3.3) for x in self.price])
-        self.res_df_wb.insert(4, 'Остаток на Бежицкой 1Б', self.stocks)
-        self.res_df_wb.insert(5, 'Брэнд', self.brand)
-        self.res_df_wb.insert(6, 'Описание', self.description)
-        self.res_df_wb.insert(7, 'Вес, г', self.weight)
-        self.res_df_wb.insert(8, 'Ширина, cм', [x[:-1] for x in self.packing_width])
-        self.res_df_wb.insert(9, 'Высота, cм', [x[:-1] for x in self.packing_height])
-        self.res_df_wb.insert(10, 'Длина, cм', [x[:-1] for x in self.package_length])
-        self.res_df_wb.insert(11, 'Производитель', self.country)
-        self.res_df_wb.insert(12, 'Ссылка на главное фото товара', [x[0] for x in self.url_img])
-        self.res_df_wb.insert(13, 'Ссылки на фото товара',
-                              [';'.join(map(str, x)) for x in [x[1:] if len(x) > 1 else '-' for x in self.url_img]])
-
     def create_df_by_dict(self):
-        # Преобразуйте словарь в DataFrame
         pd.options.mode.copy_on_write = True
+
+        # Преобразуйте словарь в DataFrame
         df = pd.DataFrame.from_dict(self.res_dict, orient='index')
 
-        # Выберите нужные столбцы
-        df_result = df[['name', 'price']]
+        # Добавление цены для продажи
+        df['price2'] = df['price'].apply(lambda x: x * 2 if x < 100 else (x * 3 if 100 <= x <= 500 else x * 4))
+
+        # Вставить столбец "price2" после третьего столбца
+        df.insert(2, 'price2', df.pop('price2'))
+
+        # Создание столбца Ссылки на фото товара
+        df['url_img2'] = df['url_img']
+        df['url_img2'] = df.apply(lambda row: ', '.join(row['url_img'][1:]) if len(row['url_img']) > 1 else '-', axis=1)
+
+        # Оставляем в столбце Ссылка на главное фото товара только первый элемент из списка
+        df['url_img'] = df['url_img'].apply(lambda x: x[0] if x else None)
+
+        self.res_df_ozon = df[['name', 'price', 'price2', 'stock', 'brand', 'description', 'weight', 'packing_width',
+                               'packing_height', 'package_length', 'country', 'url_img', 'url_img2']]
 
         # Переименуйте столбцы
-        df_result.columns = ['Название', 'Цена']
+        self.res_df_ozon.columns = ['Название', 'Цена FixPrice', 'Цена для OZON', 'Остаток', 'Брэнд', 'Описание',
+                                    'Вес, г', 'Ширина, мм', 'Высота, мм', 'Длина, мм', 'Производитель',
+                                    'Ссылка на главное фото товара', 'Ссылки на фото товара']
 
-        # Добавьте столбец с Артикулом
-        # df_result.loc[:, 'Артикул'] = df_result.index
+        # Создаем столбец Артикул из ключей словаря
+        self.res_df_ozon['Артикул'] = self.res_df_ozon.index.values
 
-        df_result['Артикул'] = df_result.index.values
+        # Переносим столбец Артикул на 1 место
+        self.res_df_ozon.insert(0, 'Артикул', self.res_df_ozon.pop('Артикул'))
+
         # Сбросьте индекс для чистоты
-        df_result.reset_index(drop=True, inplace=True)
+        self.res_df_ozon.reset_index(drop=True, inplace=True)
+
+        # Создаем копию таблицы для WB
+        self.res_df_wb = self.res_df_ozon.copy()
+
+        # Переименовываем столбцы для WB
+        self.res_df_wb = self.res_df_wb.rename(columns={'Ширина, мм': 'Ширина, cм'})
+        self.res_df_wb = self.res_df_wb.rename(columns={'Высота, мм': 'Высота, cм'})
+        self.res_df_wb = self.res_df_wb.rename(columns={'Длина, мм': 'Длина, cм'})
+
+        # Конверт мм в см
+        self.res_df_wb['Ширина, cм'] = self.res_df_wb['Ширина, cм'].apply(
+            lambda x: int(round(int(x) / 10)) if x != '-' else '-')
+        self.res_df_wb['Высота, cм'] = self.res_df_wb['Высота, cм'].apply(
+            lambda x: int(round(int(x) / 10)) if x != '-' else '-')
+        self.res_df_wb['Длина, cм'] = self.res_df_wb['Длина, cм'].apply(
+            lambda x: int(round(int(x) / 10)) if x != '-' else '-')
+
+        # Сбросьте индекс для чистоты
+        self.res_df_wb.reset_index(drop=True, inplace=True)
 
         print()
 
     def create_xls(self):
         """Создание файла excel из 1-го DataFrame"""
-        file_name = f'FP_{self.code[0]}_{self.code[-1]}.xlsx'
+        file_name = f'FP_.xlsx'
         writer = pd.ExcelWriter(file_name, engine_kwargs={'options': {'strings_to_urls': False}})
         self.res_df_ozon.to_excel(writer, sheet_name='OZON', index=False, na_rep='NaN', engine='openpyxl')
         self.res_df_wb.to_excel(writer, sheet_name='WB', index=False, na_rep='NaN', engine='openpyxl')
@@ -398,32 +355,11 @@ class FixParser:
         else:
             breakpoint()
 
-    def send_logs_to_telegram(self, message):
-        import platform
-        import socket
-        import os
-
-        platform = platform.system()
-        hostname = socket.gethostname()
-        user = os.getlogin()
-
-        bot_token = '6456958617:AAF8thQveHkyLLtWtD02Rq1UqYuhfT4LoTc'
-        chat_id = '128592002'
-
-        url = f'https://api.telegram.org/bot{bot_token}/sendMessage'
-        data = {"chat_id": chat_id, "text": message + f'\n\n{platform}\n{hostname}\n{user}'}
-        response = requests.post(url, data=data)
-        return response.json()
-
     def start(self):
         t1 = datetime.datetime.now()
         print(f'Start: {t1}')
         try:
             with sync_playwright() as playwright:
-                # self.browser = playwright.chromium.launch(headless=False, args=['--blink-settings=imagesEnabled=false'])
-                # self.context = self.browser.new_context()
-                # self.page = self.context.new_page()
-                # self.page.add_init_script(self.js)
                 self.set_city(playwright)
                 articles = self.read_articles_from_txt()
                 self.get_data_from_articles(articles, bad_brand=self.read_bad_brand(), playwright=playwright)
@@ -434,7 +370,7 @@ class FixParser:
                 self.create_xls()
         except Exception as exp:
             print(exp)
-            self.send_logs_to_telegram(message=f'Произошла ошибка!\n\n\n{exp}')
+            send_logs_to_telegram(message=f'Произошла ошибка!\n\n\n{exp}')
         t2 = datetime.datetime.now()
         print(f'Finish: {t2}, TIME: {t2 - t1}')
         self.send_logs_to_telegram(message=f'Finish: {t2}, TIME: {t2 - t1}')
