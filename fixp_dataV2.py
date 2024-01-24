@@ -321,7 +321,7 @@ class FixParser:
 
     def create_xls(self):
         """Создание файла excel из 1-го DataFrame"""
-        file_name = f'FP_.xlsx'
+        file_name = f'out\\FP_.xlsx'
         writer = pd.ExcelWriter(file_name, engine_kwargs={'options': {'strings_to_urls': False}})
         self.res_df_ozon.to_excel(writer, sheet_name='OZON', index=False, na_rep='NaN', engine='openpyxl')
         self.res_df_wb.to_excel(writer, sheet_name='WB', index=False, na_rep='NaN', engine='openpyxl')
