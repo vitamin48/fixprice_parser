@@ -6,10 +6,10 @@ from tqdm import tqdm
 from pathlib import Path
 import pandas as pd
 
-from fix_price_parser_data_by_article import bcolors
+from old_vers.fix_price_parser_data_by_article import bcolors
 
 from bs4 import BeautifulSoup
-from playwright.sync_api import Playwright, sync_playwright, expect
+from playwright.sync_api import sync_playwright
 
 CITY = 'Брянск'
 ADDRESS = 'г.Брянск, ул.Бежицкая, д.1Б'
@@ -40,12 +40,12 @@ class FixParser:
         """
 
     def read_articles_from_txt(self):
-        with open('fix_price_articles.txt', 'r', encoding='utf-8') as file:
+        with open('../in/fix_price_articles.txt', 'r', encoding='utf-8') as file:
             articles = [f'{line}'.rstrip() for line in file]
             return articles
 
     def read_bad_brand(self):
-        with open('bad_brand.txt', 'r', encoding='utf-8') as file:
+        with open('../in/bad_brand.txt', 'r', encoding='utf-8') as file:
             bad_brand = [f'{line}'.rstrip().lower() for line in file]
             return bad_brand
 
@@ -96,7 +96,7 @@ class FixParser:
                                                                 timeout=10000).inner_text()  # Установите нужное время ожидания в миллисекундах.
                     if stock_product == 'Нет в наличии':
                         print(f'{bcolors.WARNING}Нет в наличии:{bcolors.ENDC} {art}')
-                        with open('out_of_stock.txt', 'a') as output:
+                        with open('../out/out_of_stock.txt', 'a') as output:
                             output.write(art + '\n')
                         count_for_clear_cart += 1
                         break
@@ -104,7 +104,7 @@ class FixParser:
                         count_for_clear_cart += 1
                         print(f' {bcolors.OKGREEN}[+]{bcolors.ENDC} {art}')
                         self.page.wait_for_load_state('load')
-                        with open('available_in_stock.txt', 'a') as output:
+                        with open('../out/available_in_stock.txt', 'a') as output:
                             output.write(art + '\n')
                         self.page.wait_for_selector('[data-test="button"]', timeout=10000).click()
                         time.sleep(2)
@@ -117,7 +117,7 @@ class FixParser:
                             'div.price-wrapper.price > div > div > div.quantity > div > input").value; }')
                         if stock == '1':
                             print("stock == '1'!")
-                            with open('articles_with_bad_req.txt', 'a') as output:
+                            with open('../out/articles_with_bad_req.txt', 'a') as output:
                                 output.write(f'stock == 1: {art} + \n')
                         name = self.page.wait_for_selector(".product-details .title", timeout=10000).inner_text()
                         price = self.page.wait_for_selector(".product-details .regular-price",
@@ -140,7 +140,7 @@ class FixParser:
                         if brand.lower() in bad_brand:
                             print(
                                 f'{bcolors.WARNING}Товар {art} из списка нежелательных брэндов ({brand}){bcolors.ENDC}')
-                            with open('articles_with_bad_req.txt', 'a') as output:
+                            with open('../out/articles_with_bad_req.txt', 'a') as output:
                                 output.write(f'НЕЖЕЛАТЕЛЬНЫЙ БРЭНД: {art}\n')
                             break
                         else:
@@ -222,7 +222,7 @@ class FixParser:
                             break
                     else:
                         print(f'{bcolors.FAIL}НЕ ОПРЕДЕЛЕНО наличие товара: {art}')
-                        with open('articles_with_bad_req.txt', 'a') as output:
+                        with open('../out/articles_with_bad_req.txt', 'a') as output:
                             output.write('НЕ ОПРЕДЕЛЕНО наличие товара: ' + art + '\n')
                 except Exception as exp:
                     attempts += 1
@@ -231,7 +231,7 @@ class FixParser:
             if attempts == max_attempts:
                 print(f'{bcolors.FAIL}ОШИБКА! Все попытки исчерпаны. В articles_with_bad_req.txt добавлено: '
                       f'\n{bcolors.ENDC}{art}\n')
-                with open('articles_with_bad_req.txt', 'a') as output:
+                with open('../out/articles_with_bad_req.txt', 'a') as output:
                     output.write(art + '\n')
                 time.sleep(10)
 

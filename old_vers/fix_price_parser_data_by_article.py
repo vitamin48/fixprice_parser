@@ -48,7 +48,7 @@ class InfoFixPrice:
         self.__options.add_argument("--start-maximized")
         self.__options.add_argument('--blink-settings=imagesEnabled=false')
         self.__options.add_argument('--disable-blink-features=AutomationControlled')
-        self.__service = Service('chromedriver.exe')
+        self.__service = Service('../chromedriver.exe')
 
         # self.browser.execute_cdp_cmd('Page.addScriptToEvaluateOnNewDocument', {
         #     'source': 'Object.defineProperty(navigator,"webdriver",{get: () => undefined})'
@@ -94,7 +94,7 @@ class InfoFixPrice:
         self.bad_req_list = []
 
     def read_articles_from_txt(self):
-        with open('fix_price_articles.txt', 'r', encoding='utf-8') as file:
+        with open('../in/fix_price_articles.txt', 'r', encoding='utf-8') as file:
             articles = [f'{line}'.rstrip() for line in file]
             return articles
 
@@ -215,11 +215,11 @@ class InfoFixPrice:
                     if exp_arg:
                         if exp.args[0] == 'Нет в наличии':
                             self.bad_req_list.append(f'Нет в наличии: {art}')
-                            with open('out_of_stock.txt', 'a') as output:
+                            with open('../out/out_of_stock.txt', 'a') as output:
                                 output.write(art + '\n')
                         elif exp.args[0] == 'Товар доступен только в магазинах':
                             self.bad_req_list.append(f'Товар доступен только в магазинах: {art}')
-                            with open('out_of_stock.txt', 'a') as output:
+                            with open('../out/out_of_stock.txt', 'a') as output:
                                 output.write(art + '\n')
                     else:
                         a += 1
@@ -250,7 +250,7 @@ class InfoFixPrice:
                         self.check_control_sum()
                         a = 3
                         print(f' {bcolors.OKGREEN}[+]{bcolors.ENDC} {art}')
-                        with open('available_in_stock.txt', 'a') as output:
+                        with open('../out/available_in_stock.txt', 'a') as output:
                             output.write(art + '\n')
 
     def get_data_from_soup(self, soup):
@@ -382,7 +382,7 @@ class InfoFixPrice:
         writer.close()
 
     def write_txt_articles_with_bad_req(self):
-        with open('articles_with_bad_req.txt', 'a') as output:
+        with open('../out/articles_with_bad_req.txt', 'a') as output:
             for row in self.bad_req_list:
                 output.write(str(row) + '\n')
 

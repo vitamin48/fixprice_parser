@@ -12,7 +12,6 @@ catalogs.txt - список каталогов сайта
 out_of_stock.txt - список товаров, остатки которых равны 0.
 """
 import requests
-import pickle
 import datetime
 import time
 from tqdm import tqdm
@@ -20,10 +19,10 @@ from pathlib import Path
 import pandas as pd
 import json
 
-from fix_price_parser_data_by_article import bcolors
+from old_vers.fix_price_parser_data_by_article import bcolors
 
 from bs4 import BeautifulSoup
-from playwright.sync_api import Playwright, sync_playwright, expect
+from playwright.sync_api import sync_playwright
 
 CITY = 'Брянск'
 ADDRESS = 'г.Брянск, ул.Бежицкая, д.1Б'
@@ -47,6 +46,18 @@ def send_logs_to_telegram(message):
     return response.json()
 
 
+def read_articles_from_txt():
+    with open('in/fix_price_articles.txt', 'r', encoding='utf-8') as file:
+        articles = [f'{line}'.rstrip() for line in file]
+        return articles
+
+
+def read_bad_brand():
+    with open('in/bad_brand.txt', 'r', encoding='utf-8') as file:
+        bad_brand = [f'{line}'.rstrip().lower() for line in file]
+        return bad_brand
+
+
 class FixParser:
     def __init__(self):
         self.save_path = f'{str(Path(__file__).parents[1])}'
@@ -60,16 +71,6 @@ class FixParser:
         self.js = """
         Object.defineProperties(navigator, {webdriver:{get:()=>undefined}});
         """
-
-    def read_articles_from_txt(self):
-        with open('fix_price_articles.txt', 'r', encoding='utf-8') as file:
-            articles = [f'{line}'.rstrip() for line in file]
-            return articles
-
-    def read_bad_brand(self):
-        with open('bad_brand.txt', 'r', encoding='utf-8') as file:
-            bad_brand = [f'{line}'.rstrip().lower() for line in file]
-            return bad_brand
 
     def set_city(self, playwright):
         self.browser = playwright.chromium.launch(headless=False, args=['--blink-settings=imagesEnabled=false'])
@@ -120,10 +121,10 @@ class FixParser:
                     self.page.wait_for_load_state('load')
                     time.sleep(1)
                     stock_product = self.page.wait_for_selector('.product-stock .text',
-                                                                timeout=10000).inner_text()  # Установите нужное время ожидания в миллисекундах.
+                                                                timeout=10000).inner_text()
                     if stock_product == 'Нет в наличии':
                         print(f'{bcolors.WARNING}Нет в наличии:{bcolors.ENDC} {art}')
-                        with open('out_of_stock.txt', 'a') as output:
+                        with open('out/out_of_stock.txt', 'a') as output:
                             output.write(art + '\n')
                         count_for_clear_cart += 1
                         break
@@ -131,7 +132,7 @@ class FixParser:
                         count_for_clear_cart += 1
                         print(f' {bcolors.OKGREEN}[+]{bcolors.ENDC} {art}')
                         self.page.wait_for_load_state('load')
-                        with open('available_in_stock.txt', 'a') as output:
+                        with open('out/available_in_stock.txt', 'a') as output:
                             output.write(art + '\n')
                         self.page.wait_for_selector('[data-test="button"]', timeout=10000).click()
                         time.sleep(2)
@@ -139,12 +140,13 @@ class FixParser:
                         self.page.wait_for_timeout(3000)
                         time.sleep(2)
                         stock = self.page.evaluate(
-                            '() => { return document.querySelector("#__layout > div > div > div.page-content > div > div > '
+                            '() => { return document.querySelector("#__layout > div > div > div.page-content > div > '
+                            'div > '
                             'div > div > div.product > div.product-details > div.price-quantity-block > '
                             'div.price-wrapper.price > div > div > div.quantity > div > input").value; }')
                         if stock == '1':
                             print("stock == '1'!")
-                            with open('articles_with_bad_req.txt', 'a') as output:
+                            with open('out/articles_with_bad_req.txt', 'a') as output:
                                 output.write(f'stock == 1: {art} + \n')
                         name = self.page.wait_for_selector(".product-details .title", timeout=10000).inner_text()
                         price = self.page.wait_for_selector(".product-details .regular-price",
@@ -165,7 +167,7 @@ class FixParser:
                         if brand.lower() in bad_brand:
                             print(
                                 f'{bcolors.WARNING}Товар {art} из списка нежелательных брэндов ({brand}){bcolors.ENDC}')
-                            with open('articles_with_bad_req.txt', 'a') as output:
+                            with open('out/articles_with_bad_req.txt', 'a') as output:
                                 output.write(f'НЕЖЕЛАТЕЛЬНЫЙ БРЭНД: {art}\n')
                             break
                         else:
@@ -222,7 +224,7 @@ class FixParser:
                                                    'package_length': length_var1 if length_var1 else (
                                                        length_var2 if length_var2 else '-'),
                                                    'country': data.get('Страна производства', '-'), 'url_img': img_list}
-                            with open('data.json', 'w', encoding='utf-8') as json_file:
+                            with open('out/data.json', 'w', encoding='utf-8') as json_file:
                                 json.dump(self.res_dict, json_file, indent=2, ensure_ascii=False)
                             # with open('data.pickle', 'wb') as file:
                             #     pickle.dump(self.res_dict, file)
@@ -233,7 +235,7 @@ class FixParser:
                             break
                     else:
                         print(f'{bcolors.FAIL}НЕ ОПРЕДЕЛЕНО наличие товара: {art}')
-                        with open('articles_with_bad_req.txt', 'a') as output:
+                        with open('out/articles_with_bad_req.txt', 'a') as output:
                             output.write('НЕ ОПРЕДЕЛЕНО наличие товара: ' + art + '\n')
                 except Exception as exp:
                     attempts += 1
@@ -242,7 +244,7 @@ class FixParser:
             if attempts == max_attempts:
                 print(f'{bcolors.FAIL}ОШИБКА! Все попытки исчерпаны. В articles_with_bad_req.txt добавлено: '
                       f'\n{bcolors.ENDC}{art}\n')
-                with open('articles_with_bad_req.txt', 'a') as output:
+                with open('out/articles_with_bad_req.txt', 'a') as output:
                     output.write(art + '\n')
                 time.sleep(10)
                 print('Перезапускаю браузер')
@@ -347,22 +349,14 @@ class FixParser:
 
         writer.close()
 
-    def check_control_sum(self):
-        if len(self.code) == len(self.name) == len(self.price) == len(self.stocks) == len(self.brand) == \
-                len(self.description) == len(self.weight) == len(self.packing_width) == len(self.packing_height) == \
-                len(self.package_length) == len(self.country) == len(self.url_img):
-            return
-        else:
-            breakpoint()
-
     def start(self):
         t1 = datetime.datetime.now()
         print(f'Start: {t1}')
         try:
             with sync_playwright() as playwright:
                 self.set_city(playwright)
-                articles = self.read_articles_from_txt()
-                self.get_data_from_articles(articles, bad_brand=self.read_bad_brand(), playwright=playwright)
+                articles = read_articles_from_txt()
+                self.get_data_from_articles(articles, bad_brand=read_bad_brand(), playwright=playwright)
                 self.context.close()
                 self.browser.close()
                 # self.create_df()
@@ -373,7 +367,7 @@ class FixParser:
             send_logs_to_telegram(message=f'Произошла ошибка!\n\n\n{exp}')
         t2 = datetime.datetime.now()
         print(f'Finish: {t2}, TIME: {t2 - t1}')
-        self.send_logs_to_telegram(message=f'Finish: {t2}, TIME: {t2 - t1}')
+        send_logs_to_telegram(message=f'Finish: {t2}, TIME: {t2 - t1}')
 
 
 if __name__ == '__main__':
