@@ -237,6 +237,7 @@ class FixParser:
                         print(f'{bcolors.FAIL}НЕ ОПРЕДЕЛЕНО наличие товара: {art}')
                         with open('out/articles_with_bad_req.txt', 'a') as output:
                             output.write('НЕ ОПРЕДЕЛЕНО наличие товара: ' + art + '\n')
+                        attempts += 1
                 except Exception as exp:
                     attempts += 1
                     print(f'\n{bcolors.OKCYAN}Новая попытка {attempts} из {max_attempts}{bcolors.ENDC}\n\n'
