@@ -270,7 +270,20 @@ class FixParser:
         df = pd.DataFrame.from_dict(self.res_dict, orient='index')
 
         # Добавление цены для продажи
-        df['price2'] = df['price'].apply(lambda x: x * 2 if x < 100 else (x * 3 if 100 <= x <= 500 else x * 4))
+        # Функция для преобразования значения столбца price
+        def transform_price(x):
+            result = x * 5 if x < 200 else (
+                x * 4.5 if 200 <= x < 500 else (
+                    x * 4 if 500 <= x < 1000 else (
+                        x * 3.5 if 1000 <= x < 5000 else (
+                            x * 3 if 5000 <= x < 10000 else (
+                                x * 2.5 if 10000 <= x < 20000 else (x * 2))))))
+            # Убеждаемся, что значение после преобразований не меньше 490
+            result = max(result, 490)
+            # Округление до целого числа
+            return round(result)
+
+        df['price2'] = df['price'].apply(transform_price)
 
         # Вставить столбец "price2" после третьего столбца
         df.insert(2, 'price2', df.pop('price2'))

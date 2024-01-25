@@ -4,9 +4,11 @@
 import json
 import pandas as pd
 
+PATH = 'merge_dictionaries/result_merge/data.json'
 
-def read_json():
-    with open('out/data.json', 'r', encoding='utf-8') as json_file:
+
+def read_json(path='out/data.json'):
+    with open(path, encoding='utf-8') as json_file:
         data = json.load(json_file)
         return data
 
@@ -15,8 +17,22 @@ def create_df_by_dict(data_dict):
     pd.options.mode.copy_on_write = True
     # Преобразуйте словарь в DataFrame
     df = pd.DataFrame.from_dict(data_dict, orient='index')
+
     # Добавление цены для продажи
-    df['price2'] = df['price'].apply(lambda x: x * 2 if x < 100 else (x * 3 if 100 <= x <= 500 else x * 4))
+    # Функция для преобразования значения столбца price
+    def transform_price(x):
+        result = x * 5 if x < 200 else (
+            x * 4.5 if 200 <= x < 500 else (
+                x * 4 if 500 <= x < 1000 else (
+                    x * 3.5 if 1000 <= x < 5000 else (
+                        x * 3 if 5000 <= x < 10000 else (
+                            x * 2.5 if 10000 <= x < 20000 else (x * 2))))))
+        # Убеждаемся, что значение после преобразований не меньше 490
+        result = max(result, 490)
+        # Округление до целого числа
+        return round(result)
+
+    df['price2'] = df['price'].apply(transform_price)
     # Вставить столбец "price2" после третьего столбца
     df.insert(2, 'price2', df.pop('price2'))
     # Создание столбца Ссылки на фото товара
@@ -89,6 +105,6 @@ def create_xls(res_df_ozon, res_df_wb):
 
 
 if __name__ == '__main__':
-    data_json = read_json()
+    data_json = read_json(path=PATH)
     df_ozon, df_wb = create_df_by_dict(data_dict=data_json)
     create_xls(res_df_ozon=df_ozon, res_df_wb=df_wb)
