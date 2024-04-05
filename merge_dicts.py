@@ -1,4 +1,5 @@
-"""Скрипт объединяет все словари с товарами из файлов JSON"""
+"""Скрипт объединяет все словари с товарами из файлов JSON и сохраняет в отдельный JSON:
+merge_dictionaries\\result_merge\\data.json"""
 import os
 import json
 

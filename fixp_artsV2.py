@@ -40,7 +40,7 @@ def read_catalogs_from_txt():
 
 def write_txt_file_all_articles(all_art):
     with open('in/fix_price_articles.txt', 'a') as output:
-        print('Записываю в файл')
+        print('Записываю в файл fix_price_articles.txt')
         for row in all_art:
             output.write(str(row) + '\n')
 
@@ -54,6 +54,15 @@ async def playwright_config(playwright):
     page = await context.new_page()
     await page.add_init_script(js)
     return page
+
+
+async def manual_set_city(page):
+    print(f'{bcolors.OKGREEN}Загружаю...{bcolors.ENDC}')
+    await page.goto("https://fix-price.com/")
+    await page.wait_for_load_state('load')
+    await asyncio.sleep(5)
+    print(f'{bcolors.OKGREEN}Устанавите город и адрес вручную и нажмите любую клавишу{bcolors.ENDC}')
+    await page.pause()
 
 
 async def set_city(page):
@@ -89,7 +98,8 @@ async def set_city(page):
 
     await asyncio.sleep(5)
     # Ожидаем, когда Locator станет видимым
-    await page.wait_for_selector('//*[@id="modal"]/div/div/div[2]/div/div[2]/div[2]/div[1]/div[2]/div[1]/div[1]/div[1]/input')
+    await page.wait_for_selector(
+        '//*[@id="modal"]/div/div/div[2]/div/div[2]/div[2]/div[1]/div[2]/div[1]/div[1]/div[1]/input')
     # Создаем Locator
     find_shop_locator = page.locator(
         '//*[@id="modal"]/div/div/div[2]/div/div[2]/div[2]/div[1]/div[2]/div[1]/div[1]/div[1]/input')
@@ -156,7 +166,7 @@ async def get_arts_in_catalogs(page, catalogs):
 async def run(playwright: Playwright) -> None:
     page = await playwright_config(playwright)
     catalogs = read_catalogs_from_txt()
-    await set_city(page)
+    await manual_set_city(page)
     all_art = await get_arts_in_catalogs(page, catalogs)
     res_arts = [x[9:] for x in all_art]
     write_txt_file_all_articles(res_arts)

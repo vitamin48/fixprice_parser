@@ -1,7 +1,7 @@
 """
 Скрипт на основе playwright считывает ссылки на товары Fix-Price из файла fix_price_articles.txt,
 переходит по ним, предварительно установив город и адрес магазина из констант CITY и ADDRESS,
-считыват информацию и остатки каждого товара, если брэнда товара нет в файле bad_brand.txt,
+считывает информацию и остатки каждого товара, если брэнда товара нет в файле bad_brand.txt,
 записывает результаты в файл XLS.
 
 Помимо результирующего файла XLS, формируются дополнительные файлы:
@@ -18,6 +18,7 @@ from tqdm import tqdm
 from pathlib import Path
 import pandas as pd
 import json
+import traceback
 
 from old_vers.fix_price_parser_data_by_article import bcolors
 
@@ -72,6 +73,18 @@ class FixParser:
         Object.defineProperties(navigator, {webdriver:{get:()=>undefined}});
         """
 
+    def manual_set_city(self, playwright):
+        self.browser = playwright.chromium.launch(headless=False, args=['--blink-settings=imagesEnabled=false'])
+        self.context = self.browser.new_context()
+        self.page = self.context.new_page()
+        self.page.add_init_script(self.js)
+        print(f'{bcolors.OKGREEN}Загружаю https://fix-price.com...{bcolors.ENDC}')
+        self.page.goto("https://fix-price.com/")
+        self.page.wait_for_load_state('load')
+        time.sleep(5)
+        print(f'{bcolors.OKGREEN}Устанавите город и адрес вручную и нажмите любую клавишу{bcolors.ENDC}')
+        self.page.pause()
+
     def set_city(self, playwright):
         self.browser = playwright.chromium.launch(headless=False, args=['--blink-settings=imagesEnabled=false'])
         self.context = self.browser.new_context()
@@ -118,7 +131,7 @@ class FixParser:
             while attempts < max_attempts:
                 try:
                     self.page.goto(f'{self.__main_url}catalog/{art}')
-                    self.page.wait_for_load_state('load')
+                    self.page.wait_for_load_state('load', timeout=30000)
                     time.sleep(1)
                     stock_product = self.page.wait_for_selector('.product-stock .text',
                                                                 timeout=10000).inner_text()
@@ -252,7 +265,7 @@ class FixParser:
                 self.context.close()
                 self.browser.close()
                 time.sleep(3)
-                self.set_city(playwright)
+                self.manual_set_city(playwright)
 
     def clear_cart(self):
         time.sleep(10)
@@ -368,7 +381,7 @@ class FixParser:
         print(f'Start: {t1}')
         try:
             with sync_playwright() as playwright:
-                self.set_city(playwright)
+                self.manual_set_city(playwright)
                 articles = read_articles_from_txt()
                 self.get_data_from_articles(articles, bad_brand=read_bad_brand(), playwright=playwright)
                 self.context.close()
@@ -377,8 +390,10 @@ class FixParser:
                 self.create_df_by_dict()
                 self.create_xls()
         except Exception as exp:
+            traceback_str = traceback.format_exc()
             print(exp)
-            send_logs_to_telegram(message=f'Произошла ошибка!\n\n\n{exp}')
+            print(traceback_str)
+            send_logs_to_telegram(message=f'Произошла ошибка!\n\n\n{exp}\n\n\n{traceback_str}')
         t2 = datetime.datetime.now()
         print(f'Finish: {t2}, TIME: {t2 - t1}')
         send_logs_to_telegram(message=f'Finish: {t2}, TIME: {t2 - t1}')
