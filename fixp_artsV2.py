@@ -61,7 +61,7 @@ async def manual_set_city(page):
     await page.goto("https://fix-price.com/")
     await page.wait_for_load_state('load')
     await asyncio.sleep(5)
-    print(f'{bcolors.OKGREEN}Устанавите город и адрес вручную и нажмите любую клавишу{bcolors.ENDC}')
+    print(f'{bcolors.OKGREEN}Установите город и адрес вручную, затем в инспекторе нажмите продолжить{bcolors.ENDC}')
     await page.pause()
 
 
