@@ -138,10 +138,17 @@ class FixParser:
                 try:
                     self.page.goto(f'{self.__main_url}catalog/{art}', timeout=30000)
                     self.page.wait_for_load_state('load', timeout=20000)
-                    time.sleep(2)
+                    time.sleep(6)
+                    adult_text = ('Зарезервируйте товар на сайте и приобретите его в магазине, оплатив на кассе '
+                                  'магазина при получении')
+                    if adult_text in self.page.content():
+                        print(f'{bcolors.WARNING}ТОВАР ДЛЯ ВЗРОСЛЫХ: {art}{bcolors.ENDC}')
+                        with open('out/articles_with_bad_req.txt', 'a') as output:
+                            output.write(f'ТОВАР ДЛЯ ВЗРОСЛЫХ: {art}\n')
+                        break
                     stock_product = self.page.wait_for_selector('.product-stock .text',
-                                                                timeout=10000).inner_text()
-                    if stock_product == 'Нет в наличии':
+                                                                timeout=20000).inner_text()
+                    if stock_product in ['Нет в наличии', 'Товар закончился']:
                         print(f'{bcolors.WARNING}Нет в наличии:{bcolors.ENDC} {art}')
                         with open('out/out_of_stock.txt', 'a') as output:
                             output.write(art + '\n')
@@ -149,11 +156,18 @@ class FixParser:
                         break
                     elif stock_product == 'В наличии':
                         count_for_clear_cart += 1
-                        print(f' {bcolors.OKGREEN}[+]{bcolors.ENDC} {art}')
                         self.page.wait_for_load_state('load')
                         with open('out/available_in_stock.txt', 'a') as output:
                             output.write(art + '\n')
-                        self.page.wait_for_selector('[data-test="button"]', timeout=10000).click()
+                        self.page.wait_for_selector('[data-test="button"]', timeout=20000).click()
+                        if 'Товар закончился' in self.page.content():
+                            print(f'{bcolors.WARNING}Товар закончился:{bcolors.ENDC} {art}')
+                            with open('out/out_of_stock.txt', 'a') as output:
+                                output.write(art + '\n')
+                            count_for_clear_cart += 1
+                            break
+                        else:
+                            print(f' {bcolors.OKGREEN}[+]{bcolors.ENDC} {art}')
                         time.sleep(2)
                         self.page.fill('[data-test="counter-value"]', '99')
                         self.page.wait_for_timeout(4000)
@@ -167,9 +181,9 @@ class FixParser:
                             print("stock == '1'!")
                             with open('out/articles_with_bad_req.txt', 'a') as output:
                                 output.write(f'stock == 1: {art} + \n')
-                        name = self.page.wait_for_selector(".product-details .title", timeout=10000).inner_text()
+                        name = self.page.wait_for_selector(".product-details .title", timeout=20000).inner_text()
                         price = self.page.wait_for_selector(".product-details .regular-price",
-                                                            timeout=10000).inner_text()
+                                                            timeout=20000).inner_text()
                         price = float(price.replace(' ₽', '').replace(',', '.'))
                         description_element = self.page.query_selector(".product-details .description")
                         description = description_element.inner_text() if description_element else '-'
@@ -244,15 +258,18 @@ class FixParser:
                         with open('out/articles_with_bad_req.txt', 'a') as output:
                             output.write('НЕ ОПРЕДЕЛЕНО наличие товара: ' + art + '\n')
                         attempts += 1
+                        time.sleep(6)
                 except Exception as exp:
                     attempts += 1
                     print(f'\n{bcolors.OKCYAN}Новая попытка {attempts} из {max_attempts}{bcolors.ENDC}\n\n'
                           f'Для артикула: {art}\n\nИсключение:\n\n{exp}')
+                    time.sleep(60)
             if attempts == max_attempts:
                 print(f'{bcolors.FAIL}ОШИБКА! Все попытки исчерпаны. В articles_with_bad_req.txt добавлено: '
                       f'\n{bcolors.ENDC}{art}\n')
                 with open('out/articles_with_bad_req.txt', 'a') as output:
                     output.write(art + '\n')
+                send_logs_to_telegram(message=f'Перезапускаю браузер, нужно установить город\n')
                 print('Перезапускаю браузер через 10 сек')
                 time.sleep(10)
                 self.context.close()
@@ -344,8 +361,9 @@ class FixParser:
                                         img_list.append('-')
                             else:
                                 img = \
-                                soup.find('div', class_='product-images').find('div', class_='zoom-on-hover').contents[
-                                    6].attrs['src']
+                                    soup.find('div', class_='product-images').find('div',
+                                                                                   class_='zoom-on-hover').contents[
+                                        6].attrs['src']
                                 img = img.replace('800x800/', '')
                                 img_list.append(img)
                                 img_list.append('-')
