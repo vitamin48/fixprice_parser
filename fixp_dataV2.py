@@ -138,7 +138,7 @@ class FixParser:
                 try:
                     self.page.goto(f'{self.__main_url}catalog/{art}', timeout=30000)
                     self.page.wait_for_load_state('load', timeout=20000)
-                    time.sleep(6)
+                    time.sleep(1)
                     adult_text = ('Зарезервируйте товар на сайте и приобретите его в магазине, оплатив на кассе '
                                   'магазина при получении')
                     if adult_text in self.page.content():
@@ -146,6 +146,7 @@ class FixParser:
                         with open('out/articles_with_bad_req.txt', 'a') as output:
                             output.write(f'ТОВАР ДЛЯ ВЗРОСЛЫХ: {art}\n')
                         break
+
                     stock_product = self.page.wait_for_selector('.product-stock .text',
                                                                 timeout=20000).inner_text()
                     if stock_product in ['Нет в наличии', 'Товар закончился']:
@@ -160,6 +161,8 @@ class FixParser:
                         with open('out/available_in_stock.txt', 'a') as output:
                             output.write(art + '\n')
                         self.page.wait_for_selector('[data-test="button"]', timeout=20000).click()
+                        time.sleep(3)
+                        "Иногда сайт сначала показывает, что товар есть в наличии, но после нажатия кнопки, что нет."
                         if 'Товар закончился' in self.page.content():
                             print(f'{bcolors.WARNING}Товар закончился:{bcolors.ENDC} {art}')
                             with open('out/out_of_stock.txt', 'a') as output:
@@ -168,7 +171,7 @@ class FixParser:
                             break
                         else:
                             print(f' {bcolors.OKGREEN}[+]{bcolors.ENDC} {art}')
-                        time.sleep(2)
+                        time.sleep(1)
                         self.page.fill('[data-test="counter-value"]', '99')
                         self.page.wait_for_timeout(4000)
                         time.sleep(2)
@@ -261,7 +264,7 @@ class FixParser:
                         time.sleep(6)
                 except Exception as exp:
                     attempts += 1
-                    print(f'\n{bcolors.OKCYAN}Новая попытка {attempts} из {max_attempts}{bcolors.ENDC}\n\n'
+                    print(f'\n{bcolors.OKCYAN}Новая доп. попытка {attempts} из {max_attempts}{bcolors.ENDC}\n\n'
                           f'Для артикула: {art}\n\nИсключение:\n\n{exp}')
                     time.sleep(60)
             if attempts == max_attempts:
