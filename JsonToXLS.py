@@ -7,7 +7,7 @@ import pandas as pd
 
 from openpyxl.utils import get_column_letter
 
-FILE_NAME_JSON = 'merge_dictionaries/result_merge/data_1.json'
+FILE_NAME_JSON = 'merge_dictionaries/result_merge/data.json'
 
 
 def read_json():
@@ -67,9 +67,9 @@ def create_rows_for_df_by_dict(data_dict):
         "Страна"
         country = value.get('country', 'NO_KEY')
         "Высота х Длина х Ширина"
-        height = value.get('packing_height', 'NO_KEY')
-        length = value.get('package_length', 'NO_KEY')
-        width = value.get('packing_width', 'NO_KEY')
+        height = value.get('packing_height', value.get('height', 'NO_KEY'))
+        length = value.get('package_length', value.get('length', 'NO_KEY'))
+        width = value.get('packing_width', value.get('width', 'NO_KEY'))
         "Цена"
         price = value.get('price', 'NO_KEY')
         modified_price = round(float(price))
@@ -139,7 +139,7 @@ def create_df_by_rows(rows_main, rows_stock):
 
 
 def create_xls(df_main, df_stock):
-    file_name = f'FP__.xlsx'
+    file_name = f'FP_2559.xlsx'
     # Сохранение DataFrame в Excel с использованием Styler
     with pd.ExcelWriter(file_name, engine='openpyxl') as writer:
         df_main.to_excel(writer, sheet_name='Данные', index=False, na_rep='NaN')

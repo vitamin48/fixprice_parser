@@ -6,7 +6,7 @@ import json
 # Получаем текущий путь к скрипту
 current_directory = os.path.dirname(os.path.realpath(__file__))
 # Путь к папке с JSON файлами (может потребоваться изменить в соответствии с вашей структурой папок)
-json_folder_path = os.path.join(current_directory, 'merge_dictionaries')
+json_folder_path = os.path.join(current_directory, 'out')
 # Общий словарь, в который будут объединяться данные
 merged_dict = {}
 # Проходим по всем файлам в папке
