@@ -16,7 +16,8 @@ from playwright.async_api import Playwright, async_playwright
 SAVE_PATH = f'{str(Path(__file__).parents[1])}'
 MAIN_URL = 'https://fix-price.com/'
 CITY = 'Брянск'
-ADDRESS = 'г.Брянск, ул.Бежицкая, д.1Б'
+ADDRESS = 'Брянск, ул.Бежицкая, д.1Б'
+ADDRESS_2 = 'Брянск, ул.Красноармейская, д.93'
 
 
 class bcolors:
